@@ -80,6 +80,7 @@ def camview():
       elif keyChar == ' ':  # pause
         print "[PAUSED] Press any key to continue..."
         cv2.waitKey()
+        print "[RESUMED]"
       elif keyChar == 's' or keyChar == 'S':  # take snapshot
         if not ensure_dir(outDir):
           print "Unable to access snapshot directory \"{}\"".format(outDir)
