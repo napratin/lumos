@@ -12,8 +12,8 @@ import cv2.cv as cv
 from camview import ensure_dir
 
 class OutMode:
-  VIDEO = "video"
-  IMAGES = "images"
+  VIDEO = 0
+  IMAGE_SEQ = 1
 
 
 class VideoCodec:
@@ -35,6 +35,41 @@ class VideoCodec:
   WMV1 = cv.CV_FOURCC('W','M','V','1')
 
 
+class ImageSeqWriter:
+  """Saves an image sequence to timestamped directory; emulates OpenCV VideoWriter's interface (once created)."""
+  def __init__(self, seqDirPath, imagePrefix="img-", imageNumDigits=4, imageSuffix=".png"):
+    """Setup to write images as: <seqDirPath>/<imagePrefix>NNNN<imageSuffix>"""
+    self.seqDirPath = seqDirPath
+    self.imagePrefix = imagePrefix
+    self.imageNumDigits = imageNumDigits
+    self.imageSuffix = imageSuffix
+    
+    self.isOpen = False
+    if ensure_dir(self.seqDirPath):
+      self.isOpen = True
+      print "ImageSeqWriter.__init__(): Output directory ready: \"{}\"".format(self.seqDirPath)
+    else:
+      print "ImageSeqWriter.__init__(): Unable to access directory: \"{}\"".format(self.seqDirPath)
+    
+    self.frameCount = 0
+  
+  def write(self, image):
+    imageFilename = os.path.join(self.seqDirPath, "{prefix}{num}{suffix}".format(prefix=self.imagePrefix, num=str(self.frameCount).zfill(self.imageNumDigits), suffix=self.imageSuffix))
+    try:
+      cv2.imwrite(imageFilename, image)
+      print "ImageSeqWriter.write(): Image saved to \"{}\"".format(imageFilename)
+      self.frameCount += 1
+    except:
+      print "ImageSeqWriter.write(): Unable to save image to \"{}\"".format(imageFilename)
+      raise
+  
+  def isOpened(self):
+    return self.isOpen
+  
+  def release(self):
+    print "ImageSeqWriter.release(): {} images saved to \"{}\"".format(self.frameCount, self.seqDirPath)
+
+
 def cammon():
   """Monitor and store image stream from camera/video file."""
   cameraWidth, cameraHeight = (640, 480)
@@ -43,7 +78,7 @@ def cammon():
   targetDeltaTime = 1 / targetFPS
   
   maxFrames = 100
-  totalDuration = 10  # secs.
+  totalDuration = 120  # secs.
   if totalDuration * targetFPS > maxFrames:
     totalDuration = maxFrames / targetFPS
   
@@ -53,13 +88,14 @@ def cammon():
   delayS = delay / 1000.0  # sec
   
   outDir = "out"
-  outMode = OutMode.VIDEO
-  outImagePrefix = "snap_"
-  outImageSuffix = ".png"
+  outMode = OutMode.IMAGE_SEQ
   outVideoPrefix = "vid_"
   outVideoSuffix = ".mpeg"
   outVideoCodec = VideoCodec.MPEG
   outVideoFPS = 30
+  outSeqPrefix = "seq_"
+  outSnapPrefix = "snap_"
+  outSnapSuffix = ".png"
   
   print "CAMera MONitor (OpenCV " + cv2.__version__ + ")"
   device = 0
@@ -118,21 +154,27 @@ def cammon():
       imageSize = (image.shape[1], image.shape[0])
       print "Image size: {}x{}".format(imageSize[0], imageSize[1])
       
-      if outMode == OutMode.VIDEO:
-        if not ensure_dir(outDir):
-          print "Unable to access output directory \"{}\"; video will not be recorded".format(outDir)
-        else:
+      if not ensure_dir(outDir):
+        print "Unable to access output directory \"{}\"; video will not be recorded".format(outDir)
+      else:
+        if outMode == OutMode.VIDEO:
           timestamp = datetime.now()
           outVideoFilename = os.path.join(outDir, outVideoPrefix + "{:%Y-%m-%d_%H-%M-%S}".format(timestamp) + outVideoSuffix)
           videoOut = cv2.VideoWriter(outVideoFilename, outVideoCodec, outVideoFPS, imageSize)
           if videoOut is not None and videoOut.isOpened():
             print "Initialized output video file \"{}\"".format(outVideoFilename)
-            print videoOut
           else:
             print "Unable to initialize video file \"{}\"; video will not be recorded".format(outVideoFilename)
             videoOut = None
-      elif outMode == OutMode.IMAGES:
-        pass  # TODO Support OutMode.IMAGES: Initial checks
+        elif outMode == OutMode.IMAGE_SEQ:
+          timestamp = datetime.now()
+          outSeqDirPath = os.path.join(outDir, "{prefix}{tstamp:%Y-%m-%d_%H-%M-%S}".format(prefix=outSeqPrefix, tstamp=timestamp))  # write images to: <outDir>/<seqPrefix>yyyy-mm-dd_HH-MM-SS/
+          videoOut = ImageSeqWriter(outSeqDirPath)
+          if videoOut is not None and videoOut.isOpened():
+            print "Initialized output image sequence directory \"{}\"".format(outSeqDirPath)
+          else:
+            print "Unable to initialize image sequence directory \"{}\"; images will not be recorded".format(outSeqDirPath)
+            videoOut = None
     
     if timeDiff >= targetDeltaTime:
       if debug:
@@ -140,14 +182,12 @@ def cammon():
         avgFPS = frameCount / timeNow
         print "[{:6.2f}] Frame {}: {:5.2f} fps ({:5.2f} avg.)".format(timeNow, frameCount, currentFPS, avgFPS)
     
-      if outMode == OutMode.VIDEO and videoOut is not None:
+      if videoOut is not None:
         try:
           videoOut.write(image)
         except:
-          print "Error appending frame; aborting..."
+          print "Error storing image; aborting..."
           break
-      elif outMode == OutMode.IMAGES:
-        pass  # TODO Support OutMode.IMAGES: Save image
       
       frameCount += 1
       #timeLast = timeNow  # NOTE: This method is error prone, as time delay will accumulate
@@ -173,19 +213,19 @@ def cammon():
             print "Unable to access snapshot directory \"{}\"".format(outDir)
           else:
             timestamp = datetime.now()
-            outImageFilename = os.path.join(outDir, outImagePrefix + "{:%Y-%m-%d_%H-%M-%S}".format(timestamp) + outImageSuffix)
+            outSnapFilename = os.path.join(outDir, outSnapPrefix + "{:%Y-%m-%d_%H-%M-%S}".format(timestamp) + outSnapSuffix)
             try:
-              cv2.imwrite(outImageFilename, image)
-              print "Snapshot saved to \"{}\"".format(outImageFilename)
+              cv2.imwrite(outSnapFilename, image)
+              print "Snapshot saved to \"{}\"".format(outSnapFilename)
             except Exception:
-              print "Unable to save snapshot to \"{}\"".format(outImageFilename)
+              print "Unable to save snapshot to \"{}\"".format(outSnapFilename)
     else:
       sleep(delayS)
   
   avgFPS = frameCount / timeNow
   print "Done; %d frames, %.2f secs, %.2f fps (avg.)" % (frameCount, timeNow, avgFPS)
   
-  if outMode == OutMode.VIDEO and videoOut is not None:
+  if videoOut is not None:
     videoOut.release()
   camera.release()
 
