@@ -8,6 +8,9 @@ import numpy as np
 import cv2
 import cv2.cv as cv
 
+defaultCameraWidth = 320
+defaultCameraHeight = 240
+
 def ensure_dir(path):
   """Ensure a directory exists at given path; if not, try to create it."""
   if os.path.isdir(path):
@@ -24,7 +27,7 @@ def ensure_dir(path):
 
 def camview():
   """View image stream from camera/video file."""
-  cameraWidth, cameraHeight = (320, 240)
+  cameraWidth, cameraHeight = (defaultCameraWidth, defaultCameraHeight)
   delay = 20
   outDir = "out"
   outFilePrefix = "snap_"
@@ -34,13 +37,24 @@ def camview():
   device = 0
   isVideo = False
   if len(sys.argv) <= 1:
-    print "Usage: " + sys.argv[0] + " [<device_number> | <video_filename>]"
+    print "Usage: " + sys.argv[0] + " [<device_number> | <video_filename> [<width> [<height>]]]"
   else:
     try:
       device = int(sys.argv[1])  # works if sys.argv[1] is an int (device no.)
     except ValueError:
       device = sys.argv[1]  # fallback: treat sys.argv[1] as string (filename)
       isVideo = True
+  
+  # If this is a live input device (camera), then look for width and height
+  if not isVideo and len(sys.argv) > 2:
+    try:
+      cameraWidth = int(sys.argv[2])
+      if len(sys.argv) > 3:
+        cameraHeight = int(sys.argv[3])
+      else:
+        cameraHeight = int(cameraWidth * defaultCameraHeight / defaultCameraWidth)
+    except ValueError:
+      cameraWidth, cameraHeight = (defaultCameraWidth, defaultCameraHeight)
   
   print "{}: {}".format("Video file" if isVideo else "Device no.", device)
   camera = cv2.VideoCapture(device)
