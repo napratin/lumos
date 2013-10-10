@@ -96,7 +96,7 @@ def camview():
       keyCode = key & 0xff
       keyChar = chr(keyCode)
       print "Key: {} ({})".format(keyChar, keyCode)
-      if keyCode == 0x1b or keyChar == 'q' or keyChar == 'S':  # quit
+      if keyCode == 0x1b or keyChar == 'q' or keyChar == 'Q':  # quit
         isOkay = False
       elif keyChar == ' ':  # pause
         print "[PAUSED] Press any key to continue..."
