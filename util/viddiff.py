@@ -33,7 +33,10 @@ def viddiff():
   except ValueError:
     pass  # argument defaults already assigned
   
-  print "Inputs:-\n\ta: {} (frame #{})\n\tb: {} (frame #{})".format(video_filename_a, start_frame_a, video_filename_b, start_frame_b)
+  window_title_a = os.path.basename(video_filename_a)
+  window_title_b = os.path.basename(video_filename_b)
+  if window_title_a == window_title_b:
+    window_title_b += " (2)"
   
   video_a = cv2.VideoCapture(video_filename_a)
   if video_a is None or not video_a.isOpened():
@@ -44,6 +47,10 @@ def viddiff():
   if video_b is None or not video_b.isOpened():
     print "Unable to open (b): {}".format(video_filename_b)
     return
+  
+  frame_count_a = int(video_a.get(cv2.cv.CV_CAP_PROP_FRAME_COUNT))
+  frame_count_b = int(video_b.get(cv2.cv.CV_CAP_PROP_FRAME_COUNT))
+  print "Inputs:-\n\ta: {} (frame # {} / {})\n\tb: {} (frame # {} / {})".format(video_filename_a, start_frame_a, frame_count_a, video_filename_b, start_frame_b, frame_count_b)
   
   def setFramePos(video, frame_pos, relative=False, start_frame=0):
     frame_pos = video.get(cv2.cv.CV_CAP_PROP_POS_FRAMES) + frame_pos if relative else frame_pos
@@ -65,13 +72,21 @@ def viddiff():
   isPaused = False
   isEqualSize = True  # to be determined later; assume equal
   while isOkay:
+    # Check frame positions and loop over if we've reached the end
     frame_pos_a = int(video_a.get(cv2.cv.CV_CAP_PROP_POS_FRAMES))
     frame_pos_b = int(video_b.get(cv2.cv.CV_CAP_PROP_POS_FRAMES))
-    _, image_a = video_a.read()
-    _, image_b = video_b.read()
+    if frame_pos_a >= frame_count_a or frame_pos_b >= frame_count_b:
+      print "Looping (on frame count)..."
+      frame_pos_a = setFramePos(video_a, start_frame_a)
+      frame_pos_b = setFramePos(video_b, start_frame_b)
+      continue
+    
+    # Read frames; if any is blank, try looping over
+    read_result_a, image_a = video_a.read()
+    read_result_b, image_b = video_b.read()
+    #print "Frame #: {}, {} ({}, {})".format(frame_pos_a, frame_pos_b, read_result_a, read_result_b)  # [debug]
     if image_a is None or image_b is None:
-      # Loop over
-      print "Looping..."
+      print "Looping (on blank frame)..."
       frame_pos_a = setFramePos(video_a, start_frame_a)
       frame_pos_b = setFramePos(video_b, start_frame_b)
       continue
@@ -89,8 +104,8 @@ def viddiff():
     
     image_diff = cv2.absdiff(image_a, image_b)
     print "Frame #: {}, {}".format(frame_pos_a, frame_pos_b)
-    cv2.imshow("a", image_a)
-    cv2.imshow("b", image_b)
+    cv2.imshow(window_title_a, image_a)
+    cv2.imshow(window_title_b, image_b)
     cv2.imshow("diff", image_diff)
     
     key = cv2.waitKey(0 if isPaused else frame_delay)
