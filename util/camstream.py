@@ -140,8 +140,13 @@ def camstream():
   
   # * Wait for child processes to finish
   print "main(): Waiting for child processes to finish..."
-  streamViewerProcess.join()
-  cameraStreamerProcess.join()
+  try:
+    streamViewerProcess.join()
+    cameraStreamerProcess.join()
+  except KeyboardInterrupt:
+    stayAliveObj.value = False
+    streamViewerProcess.join()
+    cameraStreamerProcess.join()
   print "main(): Done."
 
 
