@@ -1,4 +1,4 @@
-cv-utils
-========
+foocv
+=====
 
-Utility codebase for making computer vision less painful
+Utility codebase and collection of tools for making computer vision less painful
