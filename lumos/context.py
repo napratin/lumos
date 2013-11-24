@@ -11,13 +11,17 @@ class Context:
   """Application context class to store global data, configuration and objects."""
   
   default_description = "An awesome computer vision application"  # applications should override this when calling Context.createInstance()
-  default_config_filename = "config.yaml"  # primary configuration file
-  alt_config_filename = os.path.join("res", "config", "config.yaml")  # configuration file in alternate location
-  default_res_path = "res"  # resource path
+  default_base_dir = os.path.dirname(__file__)  # NOTE this context module must be in top-level package
+  default_config_filename = os.path.join(default_base_dir, "config.yaml")  # primary configuration file
+  alt_config_filename = os.path.join(default_base_dir, "res", "config", "config.yaml")  # configuration file in alternate location
+  default_res_path = os.path.join(default_base_dir, "res")  # resource path
   
   @classmethod
   def createInstance(cls, *args, **kwargs):
-    cls.instance = Context(*args, **kwargs)
+    if not hasattr(cls, 'instance'):
+      cls.instance = Context(*args, **kwargs)
+    else:
+      print "Context.createInstance(): [WARNING] Context already created."
     return cls.instance
   
   @classmethod
