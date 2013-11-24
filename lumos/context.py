@@ -54,7 +54,8 @@ class Context:
     self.argParser.add_argument('--camera_height', default='auto', help="desired camera frame height")
     self.argParser.add_argument('input_source', nargs='?', default='0', help="input image/video/camera device no.")
     self.options = self.argParser.parse_args(argv)  # parse_known_args()?
-    print "Context.__init__(): Options: {}".format(self.options)
+    if self.options.debug:
+      print "Context.__init__(): Options: {}".format(self.options)
     
     # * Read config file
     self.config = {}
@@ -65,17 +66,17 @@ class Context:
       print "Context.__init__(): Error reading config file: {}".format(self.options.config_file)
       raise
     else:
-      pass  #print "Context.__init__(): Loaded configuration: {}".format(self.config)
+      pass  #print "Context.__init__(): Loaded configuration: {}".format(self.config)  # [debug]
     
     # * Obtain resource path and other parameters
     # TODO Provide unified configuration capability with config file and command-line overrides
     self.resPath = os.path.abspath(self.options.res_path)  # NOTE only absolute path seems to work properly
-    #print "Context.__init__(): Resource path: {}".format(self.resPath)
+    #print "Context.__init__(): Resource path: {}".format(self.resPath)  # [debug]
     
     # * Setup logging (before any other object is initialized that obtains a logger)
     # ** Load configuration from file
     logConfigFile = self.getResourcePath("config", "logging.conf")  # TODO make log config filename an optional argument
-    #print "Context.__init__(): Log config file: {}".format(logConfigFile)
+    #print "Context.__init__(): Log config file: {}".format(logConfigFile)  # [debug]
     startupDir = os.getcwd()  # save original startup dir
     os.chdir(os.path.dirname(logConfigFile))  # change to log config file's directory (it contains relative paths)
     logging.config.fileConfig(logConfigFile)  # load configuration
@@ -89,7 +90,7 @@ class Context:
     
     # * Get a logger instance
     self.logger = logging.getLogger(__name__)
-    # TODO Hanlde log rolling
+    # TODO Handle log rolling, log file write permission check?
     
     # * Initialize input source parameters (TODO move this logic into InputDevice?)
     self.isVideo = False

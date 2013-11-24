@@ -17,31 +17,34 @@ readme = open('README.md').read()
 # Find executable scripts to be installed, if desired
 scripts = []
 if do_install_scripts:
-  script_path = os.path.join('foocv', 'tools')
+  script_path = os.path.join('lumos', 'tools')
   scripts = [os.path.join(script_path, script) for script in os.listdir(script_path) if script.endswith('.py') and not script == '__init__.py']
   print "setup.py: [INFO] Scripts to be installed: {}".format(", ".join(scripts))
 
 # Call setup()
 setup(
-  name='foocv',
+  name='lumos',
   version='0.1',
-  description='Computer vision tools and utility codebase (depends on OpenCV)',
+  description='A collection of tools and utility constructs to enable smart computer vision applications (requires OpenCV).',
   long_description=readme,
-  url='https://github.com/napratin/foocv',
+  url='https://github.com/napratin/lumos',
   author='Arpan Chakraborty',
   author_email='napratin@yahoo.co.in',
   license='MIT',
   packages=find_packages(),
+  scripts=scripts,
+  include_package_data=True,
+  package_data={
+    'lumos': ['*.yaml', 'res/config/*.conf']
+  },
+  zip_safe=False,
   install_requires=[
     'numpy',
     'pyzmq'
   ],
-  test_suite='foocv.tests',
-  scripts=scripts,
-  include_package_data=True,
-  zip_safe=False,
+  test_suite='lumos.tests',
   platforms='any',
-  keywords='computer vision active vision video camera image processing utilities tools codebase framework',
+  keywords='lumos computer vision active vision video camera image processing utilities tools codebase framework',
   classifiers=[
     'Development Status :: 3 - Alpha',
     'Intended Audience :: Developers',
