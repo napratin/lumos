@@ -1,1 +1,5 @@
 include README.md
+include lumos/config.yaml
+recursive-include lumos/res *.yaml *.conf
+include lumos/logs/readme.txt
+include lumos/out/readme.txt

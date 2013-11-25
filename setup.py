@@ -2,7 +2,9 @@ import os
 from setuptools import setup, find_packages
 
 # Setup flags and parameters
-do_install_scripts = False  # enable this to install useful scripts in /usr/[local/]bin/
+pkg_name = 'lumos'  # top-level package name
+scripts_dir = os.path.join(pkg_name, 'tools')  # useful executable scripts
+do_install_scripts = False  # enable this to install scripts in /usr/[local/]bin/
 
 # Look for OpenCV
 try:
@@ -17,13 +19,13 @@ readme = open('README.md').read()
 # Find executable scripts to be installed, if desired
 scripts = []
 if do_install_scripts:
-  script_path = os.path.join('lumos', 'tools')
-  scripts = [os.path.join(script_path, script) for script in os.listdir(script_path) if script.endswith('.py') and not script == '__init__.py']
-  print "setup.py: [INFO] Scripts to be installed: {}".format(", ".join(scripts))
+  if os.path.isdir(scripts_dir):
+    scripts = [os.path.join(scripts_dir, script) for script in os.listdir(scripts_dir) if script.endswith('.py') and not script == '__init__.py']
+    print "setup.py: [INFO] Scripts to be installed: {}".format(", ".join(scripts))
 
 # Call setup()
 setup(
-  name='lumos',
+  name=pkg_name,
   version='0.1',
   description='A collection of tools and utility constructs to enable smart computer vision applications (requires OpenCV).',
   long_description=readme,
@@ -35,16 +37,22 @@ setup(
   scripts=scripts,
   include_package_data=True,
   package_data={
-    'lumos': ['*.yaml', 'res/config/*.conf']
+    pkg_name: [
+      '*.yaml',
+      'res/config/*.yaml',
+      'res/config/*.conf',
+      'logs/readme.txt',
+      'out/readme.txt'
+    ]
   },
   zip_safe=False,
   install_requires=[
     'numpy',
     'pyzmq'
   ],
-  test_suite='lumos.tests',
+  test_suite=(pkg_name + '.tests'),
   platforms='any',
-  keywords='lumos computer vision active vision video camera image processing utilities tools codebase framework',
+  keywords='computer vision active vision video camera image processing utilities tools codebase framework',
   classifiers=[
     'Development Status :: 3 - Alpha',
     'Intended Audience :: Developers',
