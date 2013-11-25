@@ -4,9 +4,10 @@ from math import sqrt, hypot
 import numpy as np
 import cv2
 import cv2.cv as cv
-from util import Enum
-from base import DependentFrameProcessor
-from filter.colorfilter import ColorFilterProcessor
+
+from ..util import Enum
+from ..base import DependentFrameProcessor
+from ..filter.colorfilter import ColorFilterProcessor
 
 class Blob:
   """Represents a colored blob, with associated properties."""

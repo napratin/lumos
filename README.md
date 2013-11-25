@@ -23,25 +23,22 @@ Installation and usage
     ```bash
     $ git clone git@github.com:napratin/lumos.git
     ```
-    
-2. Run:
-    
-    ```bash
-    $ cd lumos/
-    $ python lumos/tools/camview.py
-    ```
-    
-3. Develop:
+
+2. Install:
     
     ```bash
-    $ python setup.py develop
+    $ [sudo] python setup.py develop
     ```
     
-    This installs lumos in [development mode](https://pythonhosted.org/setuptools/setuptools.html#develop-deploy-the-project-source-in-development-mode), which means lumos modules are exposed directly from the directory you cloned it in. You can then `git pull` to update your local copy, and/or make changes yourself. You can also use `[sudo] python setup.py install` for a typical installation.
+    Note: This installs lumos in [development mode](https://pythonhosted.org/setuptools/setuptools.html#develop-deploy-the-project-source-in-development-mode), which means lumos modules are exposed directly from the directory you cloned it in. You can then `git pull` to update your local copy, and/or make changes yourself. You can also use `[sudo] python setup.py install` for a typical installation (recommended: [Python virtual environment](http://docs.python-guide.org/en/latest/dev/virtualenvs/)).
+
+3. Run:
     
-    Note: You may need `sudo python setup.py develop` or might want to use a [virtual environment](http://docs.python-guide.org/en/latest/dev/virtualenvs/), depending on your system.
-    
-    Sample python script:
+    ```bash
+    $ python -m lumos.tools.camview
+    ```
+
+4. Develop:
     
     ```python
     """A sample lumos application."""
@@ -73,4 +70,6 @@ Installation and usage
     if __name__ == "__main__":
       # Run a custom processor instance (NOTE pass in class name)
       run(MyAwesomeProcessor, description="A sample lumos application")
-```
+    ```
+    
+    Included as `sample.py` (run: `$ python -m sample`).

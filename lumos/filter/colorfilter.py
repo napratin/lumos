@@ -13,9 +13,10 @@ import argparse
 import numpy as np
 import cv2
 import cv2.cv as cv
-from util import Enum
-from base import FrameProcessor
-from input import run
+
+from ..util import Enum
+from ..base import FrameProcessor
+from ..input import run
 
 class HSVFilter:
   """Represents a simple HSV color filter."""

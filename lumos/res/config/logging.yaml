@@ -1,0 +1,34 @@
+version: 1
+formatters:
+    console_formatter:
+        format: "%(levelname)s | %(name)s | %(funcName)s() | %(message)s"
+    
+    file_formatter:
+        format: "%(asctime)s | %(levelname)s | %(name)s | %(funcName)s() | %(message)s"
+
+handlers:
+    console_handler:
+        # Debug level messages and upwards will be sent to the console
+        class: logging.StreamHandler
+        level: DEBUG
+        formatter: console_formatter
+        stream: ext://sys.stdout
+    
+    file_handler:
+        # Warnings, exceptions and errors will be stored in log file (path is relative to this .conf file)
+        class: logging.handlers.RotatingFileHandler
+        level: WARN
+        formatter: file_formatter
+        filename: 'logs/lumos.log'
+        maxBytes: 10485760
+        backupCount: 20
+
+loggers:
+    lumos:
+        level: NOTSET
+        handlers: [console_handler, file_handler]
+        propagate: false
+
+root:
+    level: NOTSET
+    handlers: [console_handler, file_handler]
