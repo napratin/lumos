@@ -2,6 +2,7 @@
 
 # Python imports
 import sys
+from time import sleep
 import logging
 
 # OpenCV imports

@@ -6,11 +6,13 @@ More options: python manager.py --help
 """
 
 import sys
+from time import sleep
 import argparse
 import signal
 import numpy as np
 import cv2
 import cv2.cv as cv
+
 from util import KeyCode, isImageFile, log_str, rotateImage
 from context import Context
 from input import InputDevice
