@@ -9,6 +9,7 @@ import numpy as np
 import cv2
 import cv2.cv as cv
 
+# NOTE Can't use relative imports if not executing as python module (-m)
 from camview import ensure_dir
 
 class OutMode:

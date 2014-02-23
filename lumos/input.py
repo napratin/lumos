@@ -10,9 +10,9 @@ import cv2
 import cv2.cv as cv
 
 # Custom imports
-from util import KeyCode
-from context import Context
-from base import FrameProcessor
+from .util import KeyCode
+from .context import Context
+from .base import FrameProcessor
 
 class InputDevice:
   """Abstracts away the handling of static image, recorded video files and live camera as input."""

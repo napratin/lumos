@@ -7,19 +7,20 @@ More options: python manager.py --help
 
 import sys
 from time import sleep
+import logging
 import argparse
 import signal
+
 import numpy as np
 import cv2
 import cv2.cv as cv
 
-from util import KeyCode, isImageFile, log_str, rotateImage
-from context import Context
-from input import InputDevice
-from base import FrameProcessor, FrameProcessorPipeline
-from filter.colorfilter import ColorFilterProcessor
-from track.blobtracking import BlobTracker
-import logging.config
+from .util import KeyCode, isImageFile, log_str, rotateImage
+from .context import Context
+from .input import InputDevice
+from .base import FrameProcessor, FrameProcessorPipeline
+from .filter.colorfilter import ColorFilterProcessor
+from .track.blobtracking import BlobTracker
 
 
 class PipelineManager:

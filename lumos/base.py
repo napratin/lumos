@@ -3,7 +3,8 @@
 import logging
 import numpy as np
 import cv2
-from context import Context
+
+from .context import Context
 
 class FrameProcessor:
   """Processes a sequence of images (frames)."""

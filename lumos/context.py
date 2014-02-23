@@ -6,7 +6,7 @@ import argparse
 import logging.config
 from pprint import pprint, pformat
 
-from util import isImageFile
+from .util import isImageFile
 
 class Context:
   """Application context class to store global data, configuration and objects."""

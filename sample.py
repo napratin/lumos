@@ -2,6 +2,7 @@
 
 import cv2  # OpenCV functions
 import cv2.cv as cv  # OpenCV constants
+
 from lumos.base import FrameProcessor  # base processor class
 from lumos.input import run  # driver function
 
