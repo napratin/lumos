@@ -13,9 +13,10 @@ class MyAwesomeProcessor(FrameProcessor):
     # Convert input Red-Green-Blue image to Hue-Saturation-Value
     hsv = cv2.cvtColor(imageIn, cv.CV_BGR2HSV)
     h, s, v = cv2.split(hsv)  # split into 3 channels
+    h = h.reshape(h.shape + (1,))
     
     # Pick desired hue range based on current time
-    hue = ((timeNow % 10) / 10) * 180
+    hue = int(((timeNow % 10) / 10) * 180)
     min_hue = max(0, hue - 10) 
     max_hue = min(180, hue + 10)
     
