@@ -6,7 +6,7 @@ import os
 import numpy as np
 import cv2
 
-image_file_exts = ("png", "jpg", "jpeg", "tiff", "bmp", "gif")  # file extensions that indicate image files
+image_file_exts = ("png", "jpg", "jpeg", "jpe", "jp2", "tiff", "tif", "pbm", "pgm", "ppm", "bmp", "dib", "gif")  # file extensions that indicate image files
 
 class Enum(tuple):
   """Simple enumeration type based on tuple with indices as integer values."""
