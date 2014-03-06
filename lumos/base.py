@@ -11,7 +11,7 @@ class FrameProcessor:
   
   def __init__(self):
     self.context = Context.getInstance()  # NOTE Context must be created before this
-    self.logger = logging.getLogger(__name__)
+    self.logger = logging.getLogger(self.__class__.__name__)
     self.active = False  # set to True once initialized
     # NOTE Subclasses should call FrameProcessor.__init__(self) and use self.context.options, self.logger
   

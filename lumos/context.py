@@ -6,7 +6,7 @@ import argparse
 import logging.config
 from pprint import pprint, pformat
 
-from .util import isImageFile
+from .util import isImageFile, isVideoFile
 
 class Context:
   """Application context class to store global data, configuration and objects."""
@@ -82,25 +82,29 @@ class Context:
     self.setupLogging()
     
     # * Get a logger instance
-    self.logger = logging.getLogger(__name__)
+    self.logger = logging.getLogger(self.__class__.__name__)
     
     # * Initialize input source parameters (TODO move this logic into InputDevice?)
-    self.isVideo = False
+    self.isDir = False
     self.isImage = False
+    self.isVideo = False
     if self.options.input_source is not None:  # TODO include a way to specify None; currently defaults to device #0
       # ** Obtain camera device no. or input video/image filename
       try:
         self.options.input_source = int(self.options.input_source)  # works if input_source is an int (a device no.)
-        self.isVideo = False
-        self.isImage = False
       except ValueError:
         self.options.input_source = os.path.abspath(self.options.input_source)  # fallback: treat input_source as string (filename)
-        if isImageFile(self.options.input_source):
-          self.isVideo = False
-          self.isImage = True
+        if os.path.exists(self.options.input_source):
+          if os.path.isdir(self.options.input_source):
+            self.isDir = True
+          elif isImageFile(self.options.input_source):
+            self.isImage = True
+          elif isVideoFile(self.options.input_source):
+            self.isVideo = True
+          else:
+            self.logger.warn("Input source type could not be determined: {}".format(self.options.input_source))
         else:
-          self.isVideo = True
-          self.isImage = False
+          self.logger.warn("Input source doesn't exist: {}".format(self.options.input_source))
     
     # * Timing
     self.resetTime()

@@ -4,6 +4,7 @@
 import sys
 from time import sleep
 import logging
+import types
 
 # OpenCV imports
 import cv2
@@ -20,7 +21,7 @@ class InputDevice:
   def __init__(self):
     # * Grab application context, logger and check if we have a valid input source
     self.context = Context.getInstance()
-    self.logger = logging.getLogger(__name__)
+    self.logger = logging.getLogger(self.__class__.__name__)
     self.isOkay = False  # conservative assumption: not okay till we're ready
     if self.context.options.input_source is None:
       raise Exception("No valid input source, nothing to do!")
@@ -138,7 +139,7 @@ class InputDevice:
       self.camera.release()
 
 
-def run(processorType=None, description="A demo computer vision application", parent_argparsers=[]):
+def run(processor=None, description="A demo computer vision application", parent_argparsers=[], resetContextTime=True):
   """Run a FrameProcessor instance on a static image (repeatedly) or on frames from a camera/video."""
   # * Create application context and get a logger
   context = Context.createInstance(description=description, parent_argparsers=parent_argparsers)
@@ -164,14 +165,18 @@ def run(processorType=None, description="A demo computer vision application", pa
   else:
     logger.info("Opened input source: {}".format(context.options.input_source))
   
-  # * Initialize a basic FrameProcessor, if none was supplied
-  if processorType is None:
-    processorType = FrameProcessor
-  processor = processorType()
+  # * Initialize a basic FrameProcessor, if none was supplied (NOTE either a type or an instance can be supplied)
+  if processor is None:
+    processor = FrameProcessor
+  if isinstance(processor, type) or isinstance(processor, types.ClassType):
+    processor = processor()
   
   # * Processing loop
   fresh = True
-  context.resetTime()  # start afresh
+  if resetContextTime:
+    context.resetTime()  # start afresh
+  else:
+    context.update()  # start with existing value (useful when running through multiple inputs in the same context)
   timeLast = context.timeNow
   while True:
     try:

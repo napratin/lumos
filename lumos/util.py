@@ -7,17 +7,24 @@ import numpy as np
 import cv2
 
 image_file_exts = ("png", "jpg", "jpeg", "jpe", "jp2", "tiff", "tif", "pbm", "pgm", "ppm", "bmp", "dib", "gif")  # file extensions that indicate image files
+video_file_exts = ("mp4", "mpg", "mpeg", "m4v", "avi", "ogg", "ogv")  # file extensions that indicate video files
 
 class Enum(tuple):
-  """Simple enumeration type based on tuple with indices as integer values."""
+  """Simple enumeration type based on tuple with indices as integer values.
   
-  __getattr__ = tuple.index
+  E.g.:
+    Size = Enum(('S', 'M', 'L', 'XL'))
+    mySize = Size.M
+  
+  """
+  
+  __getattr__ = tuple.index  # e.g. Size.M => getattr(Size, 'M') => tuple.index(('S', 'M', 'L', 'XL'), 'M') => 1
   
   fromString = tuple.index
   
   def toString(self, value):
     return self[value]
-
+  
 
 class KeyCode:
   """Utility class to manage special keys and other keyboard input."""
@@ -87,8 +94,13 @@ def getFileExtension(filename):
 
 
 def isImageFile(filename):
-  """Decides whether given filename represents an image file type (solely based on extension."""
+  """Decides whether given filename represents an image file type (solely based on extension)."""
   return getFileExtension(filename) in image_file_exts
+
+
+def isVideoFile(filename):
+  """Decides whether given filename represents a video file type (solely based on extension)."""
+  return getFileExtension(filename) in video_file_exts
 
 
 def cvtColorBGR2CMYK_(imageBGR):
