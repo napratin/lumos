@@ -17,6 +17,7 @@ class Context:
   alt_config_filename = os.path.join(default_base_dir, "res", "config", "config.yaml")  # configuration file in alternate location
   default_res_path = os.path.join(default_base_dir, "res")  # resource path
   default_log_file = os.path.join(default_base_dir, "logs", "lumos.log")
+  default_delay = 10  # delay between subsequent update iterations, in ms
   
   @classmethod
   def createInstance(cls, *args, **kwargs):
@@ -50,6 +51,7 @@ class Context:
     guiGroup = self.argParser.add_mutually_exclusive_group()
     guiGroup.add_argument('--gui', dest='gui', action='store_true', default=True, help="display GUI interface/windows?")
     guiGroup.add_argument('--no_gui', dest='gui', action='store_false', default=False, help="suppress GUI interface/windows?")
+    self.argParser.add_argument('--delay', dest='delay', type=int, default=None, help="delay between subsequent update iterations, in ms (default: 10ms for GUI mode, none otherwise)")
     self.argParser.add_argument('--loop_video', action="store_true", help="keep replaying video?")
     self.argParser.add_argument('--sync_video', action="store_true", help="synchronize video playback to real-time?")
     self.argParser.add_argument('--video_fps', default='auto', help="desired video frame rate (for sync)")
@@ -83,6 +85,10 @@ class Context:
     
     # * Get a logger instance
     self.logger = logging.getLogger(self.__class__.__name__)
+    
+    # * Perform any option-dependent initialization
+    if self.options.delay is None and self.options.gui:
+      self.options.delay = self.default_delay
     
     # * Initialize input source parameters (TODO move this logic into InputDevice?)
     self.isDir = False

@@ -15,7 +15,7 @@ from .util import KeyCode
 from .context import Context
 from .base import FrameProcessor
 
-class InputDevice:
+class InputDevice(object):
   """Abstracts away the handling of static image, recorded video files and live camera as input."""
   
   def __init__(self):
@@ -139,125 +139,145 @@ class InputDevice:
       self.camera.release()
 
 
-def run(processor=None, description="A demo computer vision application", parent_argparsers=[], resetContextTime=True):
-  """Run a FrameProcessor instance on a static image (repeatedly) or on frames from a camera/video."""
-  # * Create application context and get a logger
-  context = Context.createInstance(description=description, parent_argparsers=parent_argparsers)
-  logger = logging.getLogger(__name__)
+class InputRunner(object):
+  """Runs a FrameProcessor instance on a static image (repeatedly) or on frames from a camera/video."""
   
-  # * Initialize parameters and flags
-  delay = 10  # ms; only used in GUI mode, needed to process window events
-  delayS = delay / 1000.0  # sec; only used in non-GUI mode, so this can be set to 0
-  showInput = context.options.gui and True
-  showOutput = context.options.gui and True
-  showFPS = False
-  showKeys = False
-  isFrozen = False
+  def __init__(self, processor=None):
+    self.processor = processor  # NOTE either a type or an instance can be supplied
+    
+    # * Get context, logger
+    self.context = Context.getInstance()
+    self.logger = logging.getLogger(self.__class__.__name__)
+    
+    # * Initialize parameters and flags
+    self.delayS = self.context.options.delay / 1000.0 if self.context.options.delay is not None else None  # sec; only used in non-GUI mode, so this can be set to 0
+    self.showInput = self.context.options.gui and True
+    self.showOutput = self.context.options.gui and True
+    self.showFPS = False
+    self.showKeys = False
+    self.isFrozen = False
+    self.fresh = True
+    self.timeLast = self.context.timeNow
+    
+    # * Initialize input device
+    try:
+      self.inputDevice = InputDevice()  # grabs options from context
+      if not self.inputDevice.isOkay:
+        raise Exception("No camera / incorrect filename / missing video codec?")
+    except Exception as e:
+      self.logger.error("Unable to open input source: {}; aborting... [Error: {}]".format(self.context.options.input_source, e))
+      return
+    else:
+      self.logger.info("Opened input source: {}".format(self.context.options.input_source))
+    
+    # * Instantiate processor if necessary, using basic FrameProcessor class if None was supplied
+    if self.processor is None:
+      self.processor = FrameProcessor
+    if isinstance(self.processor, type) or isinstance(self.processor, types.ClassType):
+      self.processor = self.processor()
   
-  # * Initialize input device
-  try:
-    inputDevice = InputDevice()  # grabs options from context
-    if not inputDevice.isOkay:
-      raise Exception("No camera / incorrect filename / missing video codec?")
-  except Exception as e:
-    logger.error("Unable to open input source: {}; aborting... [Error: {}]".format(context.options.input_source, e))
-    return
-  else:
-    logger.info("Opened input source: {}".format(context.options.input_source))
-  
-  # * Initialize a basic FrameProcessor, if none was supplied (NOTE either a type or an instance can be supplied)
-  if processor is None:
-    processor = FrameProcessor
-  if isinstance(processor, type) or isinstance(processor, types.ClassType):
-    processor = processor()
-  
-  # * Processing loop
-  fresh = True
-  if resetContextTime:
-    context.resetTime()  # start afresh
-  else:
-    context.update()  # start with existing value (useful when running through multiple inputs in the same context)
-  timeLast = context.timeNow
-  while True:
+  def update(self):
+    """Perform a single update iteration, return True/False to indicate continuation/exit."""
+    
     try:
       # ** [timing] Obtain relative timestamp for this loop iteration
-      context.update()
-      if showFPS:
-        timeDiff = (context.timeNow - timeLast)
+      self.context.update()  # NOTE this will be a duplicate update for applications that manage context externally
+      if self.showFPS:
+        timeDiff = (self.context.timeNow - self.timeLast)
         fps = (1.0 / timeDiff) if (timeDiff > 0.0) else 0.0
-        logger.info("{0:5.2f} fps".format(fps))
+        self.logger.info("{0:5.2f} fps".format(fps))
       
       # ** Read frame from input device
-      if not isFrozen:
-        if not inputDevice.read():
-          break  # camera disconnected or reached end of video
+      if not self.isFrozen:
+        if not self.inputDevice.read():
+          return False  # camera disconnected or reached end of video
         
-        if showInput:
-          cv2.imshow("Input", inputDevice.image)
+        if self.showInput:
+          cv2.imshow("Input", self.inputDevice.image)
       
       # ** Initialize FrameProcessor, if required
-      if(fresh):
-        processor.initialize(inputDevice.image, context.timeNow) # timeNow should be ~zero on initialize
-        fresh = False
+      if(self.fresh):
+        self.processor.initialize(self.inputDevice.image, self.context.timeNow) # timeNow should be ~zero on initialize
+        self.fresh = False
       
       # ** Process frame
-      keepRunning, imageOut = processor.process(inputDevice.image, context.timeNow)
+      keepRunning, imageOut = self.processor.process(self.inputDevice.image, self.context.timeNow)
       
       # ** Show output image
-      if showOutput and imageOut is not None:
+      if self.showOutput and imageOut is not None:
         cv2.imshow("Output", imageOut)
       if not keepRunning:
-        break  # if a FrameProcessor signals us to stop, we stop (break out of main processing loop)
+        return False  # if a FrameProcessor signals us to stop, we stop (break out of main processing loop)
       
       # ** Check if GUI is available
-      if context.options.gui:
+      if self.context.options.gui:
         # *** If so, wait for inter-frame delay and process keyboard events using OpenCV
-        key = cv2.waitKey(delay)
+        key = cv2.waitKey(self.context.options.delay)
         if key != -1:
           keyCode = key & 0x00007f  # key code is in the last 8 bits, pick 7 bits for correct ASCII interpretation (8th bit indicates ?)
           keyChar = chr(keyCode) if not (key & KeyCode.SPECIAL) else None  # if keyCode is normal, convert to char (str)
           
-          if showKeys:
-            logger.info("Key: " + KeyCode.describeKey(key))
-            #logger.info("key = {key:#06x}, keyCode = {keyCode}, keyChar = {keyChar}".format(key=key, keyCode=keyCode, keyChar=keyChar))
+          if self.showKeys:
+            self.logger.info("Key: " + KeyCode.describeKey(key))
+            #self.logger.info("key = {key:#06x}, keyCode = {keyCode}, keyChar = {keyChar}".format(key=key, keyCode=keyCode, keyChar=keyChar))
           
           if keyCode == 0x1b or keyChar == 'q':
-            break
+            return False
           elif keyChar == ' ':
-            logger.info("[PAUSED] Press any key to continue...")
-            context.pause()  # [timing] saves timestamp when paused
+            self.logger.info("[PAUSED] Press any key to continue...")
+            self.context.pause()  # [timing] saves timestamp when paused
             cv2.waitKey()  # wait indefinitely for a key press
-            context.resume()  # [timing] compensates for duration paused
-            logger.info("[RESUMED]")
+            self.context.resume()  # [timing] compensates for duration paused
+            self.logger.info("[RESUMED]")
           elif keyCode == 0x0d or keyCode == 0x0a:
-            isFrozen = not isFrozen  # freeze frame, but keep processors running
-            logger.info("Input {} at {:.2f}".format("frozen" if isFrozen else "thawed", context.timeNow))
+            self.isFrozen = not self.isFrozen  # freeze frame, but keep processors running
+            self.logger.info("Input {} at {:.2f}".format("frozen" if self.isFrozen else "thawed", self.context.timeNow))
           elif keyChar == 'f':
-            showFPS = not showFPS
+            self.showFPS = not self.showFPS
           elif keyChar == 'k':
-            showKeys = not showKeys
+            self.showKeys = not self.showKeys
           elif keyChar == 'i':
-            showInput = not showInput
-            if not showInput:
+            self.showInput = not self.showInput
+            if not self.showInput:
               cv2.destroyWindow("Input")
           elif keyChar == 'o':
-            showOutput = not showOutput
-            if not showOutput:
+            self.showOutput = not self.showOutput
+            if not self.showOutput:
               cv2.destroyWindow("Output")
-          elif not processor.onKeyPress(key, keyChar):
-            break
-      else:
+          elif not self.processor.onKeyPress(key, keyChar):
+            return False
+      elif self.delayS is not None:
         # *** Else, wait for inter-frame delay using system method
-        sleep(delayS)
+        sleep(self.delayS)
       
       # ** [timing] Save timestamp for fps calculation
-      timeLast = context.timeNow
+      self.timeLast = self.context.timeNow
     except KeyboardInterrupt:
-      logger.info("Interrupted! Exiting...")
-      break
+      self.logger.info("Interrupted!")
+      return False
+    
+    return True  # keep looping
+  
+  def cleanUp(self):
+    self.logger.debug("Cleaning up...")
+    if self.context.options.gui:
+      cv2.destroyAllWindows()
+    self.inputDevice.close()
+
+
+def run(processor=None, description="A demo computer vision application", parent_argparsers=[], resetContextTime=True):
+  # * Create application context and input runner
+  context = Context.createInstance(description=description, parent_argparsers=parent_argparsers)
+  runner = InputRunner(processor)
+  
+  # * Start processing loop
+  if resetContextTime:
+    context.resetTime()  # start afresh
+  else:
+    context.update()  # start with existing value (useful when running through multiple inputs in the same context)
+  
+  while runner.update():
+    pass  # nothing else to do; stop when runner.update() returns False
   
   # * Clean-up
-  logger.debug("Cleaning up...")
-  if context.options.gui:
-    cv2.destroyAllWindows()
-  inputDevice.close()
+  runner.cleanUp()
