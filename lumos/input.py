@@ -1,4 +1,4 @@
-"""Components to help manage input image sources."""
+"""Components to help manage image input sources."""
 
 # Python imports
 import sys
@@ -137,6 +137,9 @@ class InputDevice(object):
   def close(self):
     if not self.context.isImage:
       self.camera.release()
+
+
+# TODO Add rpc.Client-based InputDevice
 
 
 class InputRunner(object):

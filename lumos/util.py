@@ -3,12 +3,18 @@ Utility classes and functions.
 """
 
 import os
+from inspect import ismethod, isclass
 import numpy as np
 import cv2
+import zmq
 
+
+# Globals
 image_file_exts = ("png", "jpg", "jpeg", "jpe", "jp2", "tiff", "tif", "pbm", "pgm", "ppm", "bmp", "dib", "gif")  # file extensions that indicate image files
 video_file_exts = ("mp4", "mpg", "mpeg", "m4v", "avi", "ogg", "ogv")  # file extensions that indicate video files
 
+
+# Types
 class Enum(tuple):
   """Simple enumeration type based on tuple with indices as integer values.
   
@@ -63,7 +69,9 @@ class KeyCode:
     return desc
 
 
+# Decorators
 def deprecated(func):
+  """Decorator to mark deprecated functions."""
   func._deprecated_warned = False
   def deprecated_func(*args, **kwargs):
     if not func._deprecated_warned:
@@ -73,6 +81,7 @@ def deprecated(func):
   return deprecated_func
 
 
+# Logging [deprecated: use Python's logging facility, configured by context]
 @deprecated
 def log_str(obj, func, msg):
   """Compose a log message with an object's class name and (optional) function name."""
@@ -88,6 +97,7 @@ def log(obj, func, msg):
   print log_str(obj, func, msg)
 
 
+# File-related
 def getFileExtension(filename):
   """Return the extension part of a filename, sans period, in lowercase."""
   return os.path.splitext(filename)[1][1:].strip().lower()
@@ -103,6 +113,46 @@ def isVideoFile(filename):
   return getFileExtension(filename) in video_file_exts
 
 
+# Inspection
+def is_bound(method):
+  """Check if argument is a bound (method), i.e. its __self__ attr is not None."""
+  return getattr(method, '__self__', None) is not None
+
+
+def is_classmethod(method):
+  """Check if argument is a classmethod object (only useful when being defined inside a class)."""
+  return isinstance(method, classmethod)
+
+
+def is_bound_classmethod(method):
+  """Check if argument is a classmethod bound to a class (useful after the class has been defined)."""
+  return ismethod(method) and is_bound(method) and isclass(method.__self__)
+
+
+def is_bound_instancemethod(method):
+  """Check if argument is an instancemethod bound to an instance (useful after instance has been created)."""
+  return ismethod(method) and is_bound(method) and not isclass(method.__self__)
+
+
+# ZMQ-related
+def send_array(socket, arr, meta=dict(), flags=0, copy=True, track=False):
+  """Send a numpy array with metadata."""
+  meta['dtype'] = str(arr.dtype)
+  meta['shape'] = arr.shape
+  socket.send_json(meta, flags | zmq.SNDMORE)
+  return socket.send(arr, flags, copy=copy, track=track)
+
+
+def recv_array(socket, flags=0, copy=True, track=False):
+  """Receive a numpy array with metadata."""
+  meta = socket.recv_json(flags=flags)
+  msg = socket.recv(flags=flags, copy=copy, track=track)
+  buf = buffer(msg)
+  arr = np.frombuffer(buf, dtype=meta['dtype'])
+  return arr.reshape(meta['shape']), meta
+
+
+# OpenCV-specific, usually operating on an image
 def cvtColorBGR2CMYK_(imageBGR):
   """
   Convert a BGR image to CMYK and return separate color channels as 4-tuple.

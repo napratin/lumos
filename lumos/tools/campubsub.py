@@ -23,12 +23,15 @@ server_bind_host = "*"
 server_host = "127.0.0.1"
 server_port = 60006
 
+
+# Utilitiy functions (should be in util, but duplicated here to keep tools standalone)
 def send_array(socket, arr, meta=dict(), flags=0, copy=True, track=False):
   """Send a numpy array with metadata."""
   meta['dtype'] = str(arr.dtype)
   meta['shape'] = arr.shape
-  socket.send_json(meta, flags|zmq.SNDMORE)
+  socket.send_json(meta, flags | zmq.SNDMORE)
   return socket.send(arr, flags, copy=copy, track=track)
+
 
 def recv_array(socket, flags=0, copy=True, track=False):
   """Receive a numpy array with metadata."""
@@ -37,6 +40,7 @@ def recv_array(socket, flags=0, copy=True, track=False):
   buf = buffer(msg)
   arr = np.frombuffer(buf, dtype=meta['dtype'])
   return arr.reshape(meta['shape']), meta
+
 
 class CameraStreamPublisher(Process):
   def __init__(self):
