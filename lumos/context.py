@@ -6,7 +6,8 @@ import argparse
 import logging.config
 from pprint import pprint, pformat
 
-from .util import isImageFile, isVideoFile
+from .util import isImageFile, isVideoFile, isRemote
+
 
 class Context:
   """Application context class to store global data, configuration and objects."""
@@ -18,6 +19,29 @@ class Context:
   default_res_path = os.path.join(default_base_dir, "res")  # resource path
   default_log_file = os.path.join(default_base_dir, "logs", "lumos.log")
   default_delay = 10  # delay between subsequent update iterations, in ms
+  
+  @classmethod
+  def createChoiceParser(cls, choices, description="", add_help=False, required=False):
+    """Create a simple choice parser (mutually exclusive group) from a list/iterable.
+    
+    E.g.:
+    Context.createChoiceParser(['--apples', '--oranges', '--bananas'])
+    Context.createChoiceParser([('--their-algo', 'published in their paper')
+                                ('--my-algo', 'the one I worked on this year')])
+    
+    """
+    argParser = argparse.ArgumentParser(add_help=add_help)
+    choiceGroup = argParser.add_mutually_exclusive_group(required=required)
+    for choice in choices:
+      if not isinstance(choice, (tuple, list)):
+        choice = (choice,)
+      try:
+        choiceGroup.add_argument(choice[0],
+                                 action='store_true',
+                                 help=choice[1] if len(choice) > 1 else "")
+      except Exception as e:
+        print "Context.createSimpleArgParser(): Unable to add arg: {}".format(e)
+    return argParser
   
   @classmethod
   def createInstance(cls, *args, **kwargs):
@@ -94,23 +118,27 @@ class Context:
     self.isDir = False
     self.isImage = False
     self.isVideo = False
+    self.isRemote = False
+    self.remoteEndpoint = None
     if self.options.input_source is not None:  # TODO include a way to specify None; currently defaults to device #0
       # ** Obtain camera device no. or input video/image filename
       try:
         self.options.input_source = int(self.options.input_source)  # works if input_source is an int (a device no.)
       except ValueError:
-        self.options.input_source = os.path.abspath(self.options.input_source)  # fallback: treat input_source as string (filename)
-        if os.path.exists(self.options.input_source):
-          if os.path.isdir(self.options.input_source):
-            self.isDir = True
-          elif isImageFile(self.options.input_source):
-            self.isImage = True
-          elif isVideoFile(self.options.input_source):
-            self.isVideo = True
+        self.isRemote, self.remoteEndpoint = isRemote(self.options.input_source, parts=True)  # check if this is a network address (endpoint)
+        if not self.isRemote:
+          self.options.input_source = os.path.abspath(self.options.input_source)  # fallback: treat input_source as string (filename)
+          if os.path.exists(self.options.input_source):
+            if os.path.isdir(self.options.input_source):
+              self.isDir = True
+            elif isImageFile(self.options.input_source):
+              self.isImage = True
+            elif isVideoFile(self.options.input_source):
+              self.isVideo = True
+            else:
+              self.logger.warn("Input source type could not be determined: {}".format(self.options.input_source))
           else:
-            self.logger.warn("Input source type could not be determined: {}".format(self.options.input_source))
-        else:
-          self.logger.warn("Input source doesn't exist: {}".format(self.options.input_source))
+            self.logger.warn("Input source doesn't exist: {}".format(self.options.input_source))
     
     # * Timing
     self.resetTime()

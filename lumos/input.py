@@ -6,7 +6,8 @@ from time import sleep
 import logging
 import types
 
-# OpenCV imports
+# NumPy, OpenCV imports
+import numpy as np
 import cv2
 import cv2.cv as cv
 
@@ -14,6 +15,7 @@ import cv2.cv as cv
 from .util import KeyCode
 from .context import Context
 from .base import FrameProcessor
+
 
 class InputDevice(object):
   """Abstracts away the handling of static image, recorded video files and live camera as input."""
@@ -31,6 +33,11 @@ class InputDevice(object):
       self.camera = cv2.imread(self.context.options.input_source)
       if self.camera is None:
         raise Exception("Error opening input image file")
+    elif self.context.isRemote:
+      from net import ImageClient  # to prevent circular dependency
+      self.camera = ImageClient(protocol=self.context.remoteEndpoint['protocol'], host=self.context.remoteEndpoint['host'], port=self.context.remoteEndpoint['port'])
+      # TODO Allow custom read_call param via command-line arg --rpc_read_call (or remoteEndpoint['path']?)
+      # TODO Add ability to read remote URLs by (use a common isStatic flag for local and remote images)
     else:
       self.camera = cv2.VideoCapture(self.context.options.input_source)
       if self.camera is None or not self.camera.isOpened():
@@ -42,8 +49,8 @@ class InputDevice(object):
     self.frameTimeStart = self.context.timeNow  # synced with context
     self.timeDelta = 0.0
     
-    # * Set camera frame size (if this is a live camera; TODO enable frame resizing for videos as well?)
-    if not self.context.isVideo and not self.context.isImage:
+    # * Set camera frame size (if this is a live camera; TODO enable frame resizing for videos and static images as well?)
+    if not (self.context.isImage or self.context.isVideo or self.context.isRemote):
       #_, self.image = self.camera.read()  # pre-grab
       # NOTE: If camera frame size is not one supported by the hardware, grabbed images are scaled to desired size, discarding aspect-ratio
       try:
@@ -54,7 +61,7 @@ class InputDevice(object):
       except ValueError:
         self.logger.warning("Ignoring invalid camera frame size: {}x{}".format(self.context.options.camera_width, self.context.options.camera_height))
     
-    # * Check if this is a static image or camera/video
+    # * Check if this is a static image or camera/video/remote endpoint
     if self.context.isImage:
       # ** Supplied camera object should be an image, copy it
       self.image = self.camera
@@ -78,7 +85,8 @@ class InputDevice(object):
       
       # ** Grab test image and read common camera/video properties
       self.readFrame()  # post-grab (to apply any camera prop changes made)
-      self.logger.info("Frame size: {}x{}".format(int(self.camera.get(cv.CV_CAP_PROP_FRAME_WIDTH)), int(self.camera.get(cv.CV_CAP_PROP_FRAME_HEIGHT))))
+      if not self.context.isRemote:
+        self.logger.info("Frame size: {}x{}".format(int(self.camera.get(cv.CV_CAP_PROP_FRAME_WIDTH)), int(self.camera.get(cv.CV_CAP_PROP_FRAME_HEIGHT))))
       if self.context.isVideo:
         self.resetVideo()
     
@@ -135,11 +143,8 @@ class InputDevice(object):
     # NOTE Depending on the actual keyframes in the video, a reset may not work correctly (some frames towards the end may be skipped everytime after the first reset)
   
   def close(self):
-    if not self.context.isImage:
+    if not self.context.isImage:  # not valid for static images
       self.camera.release()
-
-
-# TODO Add rpc.Client-based InputDevice
 
 
 class InputRunner(object):
@@ -284,3 +289,7 @@ def run(processor=None, description="A demo computer vision application", parent
   
   # * Clean-up
   runner.cleanUp()
+
+
+if __name__ == "__main__":
+  run()

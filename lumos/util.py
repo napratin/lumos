@@ -4,6 +4,7 @@ Utility classes and functions.
 
 import os
 from inspect import ismethod, isclass
+from urlparse import urlparse
 import numpy as np
 import cv2
 import zmq
@@ -97,7 +98,7 @@ def log(obj, func, msg):
   print log_str(obj, func, msg)
 
 
-# File-related
+# File/resource-related
 def getFileExtension(filename):
   """Return the extension part of a filename, sans period, in lowercase."""
   return os.path.splitext(filename)[1][1:].strip().lower()
@@ -111,6 +112,25 @@ def isImageFile(filename):
 def isVideoFile(filename):
   """Decides whether given filename represents a video file type (solely based on extension)."""
   return getFileExtension(filename) in video_file_exts
+
+
+def isRemote(filename, parts=None):
+  """Is filename a remote (network) endpoint like 'scheme://netloc:port'? (a valid scheme and netloc are required)
+  
+  Optionally returns parsed URL components: in parts if it is a dict, or as a second value if parts is True.
+  
+  """
+  url_parts = urlparse(filename)
+  valid = (url_parts.scheme != '' and url_parts.netloc != '')
+  if valid:
+    url_parts = {'protocol': url_parts.scheme, 'host': url_parts.hostname, 'port': url_parts.port}
+  else:
+    url_parts = None
+  if parts is True:
+    return valid, url_parts
+  elif parts is not None and isinstance(parts, dict):
+    parts.update(url_parts)
+  return valid
 
 
 # Inspection

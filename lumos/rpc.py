@@ -66,7 +66,7 @@ _exported_objects = OrderedDict()  # maintaining order generates more predictabl
 _exported_callables = OrderedDict()
 _helpers = OrderedDict()
 
-logger = logging.getLogger(__name__)  # TODO create per-instance loggers with class name labels
+logger = logging.getLogger(__name__)  # module-level logger for functions and decorators
 call_request_template = dict(type='call', call=None)
 call_reply_template = dict(status='ok', type='value', value=None)  # reply message used to wrap any serializable return value
 call_reply_raw_template = dict(status='ok', type='raw')  # special reply message used as header for raw data
@@ -264,7 +264,8 @@ class Server(object):
   recv_timeout = 4000
   _loop_flag = True  # run() keeps running while this is True
 
-  def __init__(self, protocol=default_protocol, host=default_bind_host, port=default_port, timeout=recv_timeout, *args, **kwargs):
+  def __init__(self, protocol=default_protocol, host=default_bind_host, port=default_port, timeout=recv_timeout):
+    self.logger = logging.getLogger(self.__class__.__name__)
     self.addr = "{}://{}:{}".format(protocol, host, port)
     self.timeout = timeout
     refresh()  # gather/update all callables, for further updates call refresh() externally
@@ -277,10 +278,10 @@ class Server(object):
       self.s.setsockopt(zmq.RCVTIMEO, self.timeout)
     self.s.bind(self.addr)
     time.sleep(0.1)  # yield to ZMQ backend
-    logger.info("Bound to: {}".format(self.addr))
+    self.logger.info("Bound to: {}".format(self.addr))
     
     # Serve indefinitely, till interrupted/flagged
-    logger.info("Starting server [Ctrl+C to quit]")
+    self.logger.info("Starting server [Ctrl+C to quit]")
     self._loop_flag = True
     while self._loop_flag:
       try:
@@ -299,10 +300,10 @@ class Server(object):
     # Clean up
     self.s.close()
     #self.c.term()  # don't close context, as it may be shared (will be closed upon release anyway)
-    logger.info("Server stopped.")
+    self.logger.info("Server stopped.")
   
   def handle(self, request):
-    logger.debug("REQ: %s", request)  # [verbose]
+    self.logger.debug("REQ: %s", request)  # [verbose]
     
     # Open top-level try block to catch exceptions of type RPCError
     # NOTE Internal try blocks should raise RPCError instances with appropriate messages
@@ -348,7 +349,7 @@ class Server(object):
                 retval = call_target(**params)
                 if getattr(call_target, _rpc_image_payload_attr, False) and isinstance(retval, np.ndarray):
                   # Image payload call returned an image; send back header/metadata followed by image bytes
-                  logger.debug("REP[image]: shape: {}, dtype: {}".format(retval.shape, retval.dtype))  # [verbose]
+                  self.logger.debug("REP[image]: shape: {}, dtype: {}".format(retval.shape, retval.dtype))  # [verbose]
                   header = make_call_reply_image(retval)
                   self.s.send_json(header, zmq.SNDMORE)
                   return self.s.send(retval)
@@ -357,17 +358,17 @@ class Server(object):
                   header = make_call_reply_raw()
                   self.s.send_json(header, zmq.SNDMORE)
                   if isinstance(retval, (tuple, list)):  # multiple payloads
-                    logger.debug("REP[raw]: %d payload(s)", len(retval))
+                    self.logger.debug("REP[raw]: %d payload(s)", len(retval))
                     self.s.send_multipart(retval)
                   else:
-                    logger.debug("REP[raw]: Payload: %d bytes", len(retval))
+                    self.logger.debug("REP[raw]: Payload: %d bytes", len(retval))
                     self.s.send(retval)
                 else:
                   # Regular (value) call
-                  logger.debug("REP: {}".format(retval))  # [verbose]
+                  self.logger.debug("REP: {}".format(retval))  # [verbose]
                   self.s.send_json(make_call_reply(retval))
               except zmq.ZMQError as e:  # catch ZMQ exceptions separately
-                logger.error("Unable to send reply (ZMQError): {}".format(e))  # don't try to send back an RPCError message
+                self.logger.error("Unable to send reply (ZMQError): {}".format(e))  # don't try to send back an RPCError message
               except Exception as e:  # catch all other exceptions, related to failed RPC call or otherwise
                 raise RPCError("{}: {}".format(e.__class__.__name__, e.message))  # message is the return value
             except TypeError as e:
@@ -379,7 +380,7 @@ class Server(object):
       else:
         raise RPCError("Invalid request: {}".format(request), reply_bad_request)
     except RPCError as e:
-      logger.error(e.message)
+      self.logger.error(e.message)
       retval = e.retval if e.retval is not None else make_error_reply(e.message)
       self.s.send_json(retval)  # NOTE retval is assumed to be a dict
   
@@ -394,6 +395,7 @@ class Client(object):
   recv_timeout = None  #2000  # it's better to force clients to block and Ctrl+C out of them
   
   def __init__(self, protocol=default_protocol, host=default_connect_host, port=default_port, timeout=recv_timeout):
+    self.logger = logging.getLogger(self.__class__.__name__)
     self.addr = "{}://{}:{}".format(protocol, host, port)
     self.c = zmq.Context()
     self.s = self.c.socket(zmq.REQ)
@@ -401,13 +403,13 @@ class Client(object):
       self.s.setsockopt(zmq.RCVTIMEO, timeout)
     self.s.connect(self.addr)
     time.sleep(0.1)  # yield to ZMQ backend
-    logger.info("Connected to: {}".format(self.addr))
+    self.logger.info("Connected to: {}".format(self.addr))
   
   def call(self, call, params={}):
     return self.request(make_call_request(call, params))
   
   def request(self, req):
-    #logger.debug("REQ: %s", req)  # [verbose]
+    #self.logger.debug("REQ: %s", req)  # [verbose]
     self.s.send_json(req)  # req must be a Python dict/JSON object; caller must handle any exceptions
     
     try:
@@ -415,36 +417,36 @@ class Client(object):
       
       # Handle errors (return an Exception object with the message)
       if rep['status'] == 'error':
-        #logger.error("REP[error]: {}".format(rep))  # [verbose]
+        #self.logger.error("REP[error]: {}".format(rep))  # [verbose]
         return Exception(rep.get('msg', 'Unknown error'))
       
       # Handle different reply types
       if rep['type'] == 'value' and 'value' in rep:
-        #logger.debug("REP: {}".format(rep['value']))  # [verbose]
+        #self.logger.debug("REP: {}".format(rep['value']))  # [verbose]
         return rep['value']
       elif rep['type'] == 'image' and 'shape' in rep and 'dtype' in rep and self.s.getsockopt(zmq.RCVMORE):  # check for image data
         imageBytes = self.s.recv()  # TODO what if there's more data? should we recv till no more?
         imageBuffer = buffer(imageBytes)
         imageArray = np.frombuffer(imageBuffer, dtype=rep['dtype'])
         image = imageArray.reshape(rep['shape'])
-        #logger.debug("REP[image]: shape: {}, dtype: {}".format(image.shape, image.dtype))  # [verbose]
+        #self.logger.debug("REP[image]: shape: {}, dtype: {}".format(image.shape, image.dtype))  # [verbose]
         return image
       elif rep['type'] == 'raw' and self.s.getsockopt(zmq.RCVMORE):  # check for payload(s)
         payloads = []
         while self.s.getsockopt(zmq.RCVMORE):
           payload = self.s.recv()  # payloads are treated as raw
           payloads.append(payload)
-          #logger.debug("REP[raw]: Payload: %d bytes", len(payload))  # [verbose]
-        #logger.debug("REP[raw]: %d payload(s)", len(payloads))  # [verbose]
+          #self.logger.debug("REP[raw]: Payload: %d bytes", len(payload))  # [verbose]
+        #self.logger.debug("REP[raw]: %d payload(s)", len(payloads))  # [verbose]
         # Returned value should be None, a single object or a list: <payload_1>, <payload_2> ...
         if len(payloads) == 1:
           return payloads[0]
         elif len(payloads) > 1:
           return payloads
       else:
-        logger.debug("REP[unknown]: %s", rep)  # [verbose]
+        self.logger.debug("REP[unknown]: %s", rep)  # [verbose]
     except JSONDecodeError as e:
-      logger.error("Unable to parse JSON reply: {}".format(e))  # [verbose]
+      self.logger.error("Unable to parse JSON reply: {}".format(e))  # [verbose]
     except zmq.ZMQError as e:
       if e.errno == zmq.EAGAIN:
         pass  # no message available, probably a timeout
@@ -456,40 +458,13 @@ class Client(object):
   def close(self):
     self.s.close()
     #self.c.term()  # don't close context, as it may be shared (will be closed upon release anyway)
-    logger.info("Client closed.")
+    self.logger.info("Client closed.")
   
   def __enter__(self):
     return self
 
   def __exit__(self, *_):  # unused args: (exc_type, exc_value, exc_trace)
     self.close()
-
-
-class ImageServer(object):
-  """A simple image server that serves images captured from an Input device. Export an instance to activate RPC calls."""
-  
-  default_port = 61616
-  
-  def __init__(self, device):
-    if device is None:
-      from context import Context
-      from input import InputDevice
-      Context.createInstance()  # required before initializing an InputDevice
-      device = InputDevice()
-    self.device = device
-  
-  @enable_image
-  def get_image(self):
-    if self.device.read():
-      return self.device.image
-    else:
-      return None
-  
-  def __enter__(self):
-    return self
-  
-  def __exit__(self):
-    self.device.close()
 
 
 # Primary module-level functions
@@ -531,43 +506,6 @@ def start_server_thread(daemon=True, *args, **kwargs):
 def stop_server():
   """Stop RPC server, whether started in blocking mode or asynchronously."""
   Server.stop()
-
-
-def image_server(port=ImageServer.default_port, device=None, *args, **kwargs):
-  """A demo RPC server that exposes a method to retrieve images from a given InputDevice."""
-  with ImageServer(device) as imageServer:
-    export(imageServer)
-    start_server(port=port, *args, **kwargs)
-
-
-def image_client(port=ImageServer.default_port, call='ImageServer.get_image', gui=True, delay=20, *args, **kwargs):
-  """A demo client that repeatedly makes RPC calls to get an image and display it (must have server running)."""
-  import cv2
-  with Client(port=port, *args, **kwargs) as rpcClient:
-    if gui:
-      cv2.namedWindow("image_client")
-      cv2.waitKey(10)
-    print "image_client(): Starting display loop"
-    while True:
-      try:
-        if gui:
-          key = cv2.waitKey(delay)
-          if key & 0x00007f == 0x1b:
-            break
-        #print "[image_client] REQ:", call
-        retval = rpcClient.call(call)
-        if retval is None:
-          continue  # no reply/timeout
-        if isinstance(retval, np.ndarray):
-          #print "[image_client] REP[image]: shape: {}, dtype: {}".format(retval.shape, retval.dtype)
-          # NOTE Qt (and possibly other backends) can only display from the main thread of a process
-          if gui:
-            cv2.imshow("image_client", retval)
-        #else:
-        #  print "[image_client] REP:", retval
-      except KeyboardInterrupt:
-        break
-  print "image_client(): Done."
 
 
 # Testing
