@@ -147,6 +147,73 @@ class InputDevice(object):
       self.camera.release()
 
 
+class Projector(FrameProcessor):
+  """An input manager that can select a window within a given image stream, with a movable point of focus."""
+  
+  key_focus_jump = 10  # no. of pixels to shift focus under (manual) keyboard control
+  screen_background = np.uint8([128, 128, 128])  # what should the area outside the source image stream be treated as
+  
+  def __init__(self, target=None):
+    FrameProcessor.__init__(self)
+    self.target = target if target is not None else FrameProcessor()
+  
+  def initialize(self, imageIn, timeNow):
+    FrameProcessor.initialize(self, imageIn, timeNow)
+    self.target.initialize(imageIn, timeNow)  # call through
+    self.screenSize = (self.imageSize[0] + 2 * self.target.imageSize[0], self.imageSize[1] + 2 * self.target.imageSize[1])  # create a screen which is big enough to accomodate input image and allow panning focus to the edges
+    self.logger.debug("Screen size: {}".format(self.screenSize))
+    self.screen = np.zeros((self.screenSize[1], self.screenSize[0], 3), dtype=np.uint8)
+    self.screen[:, :] = self.screen_background
+    self.updateImageRect()
+    self.setFocus(self.screenSize[0] / 2, self.screenSize[1] / 2)  # calls updateFocusRect()
+  
+  def process(self, imageIn, timeNow):
+    self.image = imageIn
+    self.timeNow = timeNow
+    # Copy image to screen, and send part of screen to target (TODO optimize this to a single step?)
+    self.screen[self.imageRect[2]:self.imageRect[3], self.imageRect[0]:self.imageRect[1]] = self.image
+    #if self.context.options.gui: cv2.imshow("Screen", self.screen)  # [debug]
+    self.targetImage = self.screen[self.focusRect[2]:self.focusRect[3], self.focusRect[0]:self.focusRect[1]]
+    #if self.context.options.gui: cv2.imshow("Target", self.targetImage)  # [debug]
+    return self.target.process(self.targetImage, timeNow)
+  
+  def onKeyPress(self, key, keyChar=None):
+    if keyChar == 'w':
+      self.shiftFocus(deltaY=-self.key_focus_jump)
+    elif keyChar == 's':
+      self.shiftFocus(deltaY=self.key_focus_jump)
+    elif keyChar == 'a':
+      self.shiftFocus(deltaX=-self.key_focus_jump)
+    elif keyChar == 'd':
+      self.shiftFocus(deltaX=self.key_focus_jump)
+    elif keyChar == 'c':
+      self.setFocus(self.screenSize[0] / 2, self.screenSize[1] / 2)
+    return True
+  
+  def updateImageRect(self):
+    # Compute image rect bounds - constant screen area where image is copied: (left, right, top, bottom)
+    # TODO Ensure rect format (left, right, top, bottom) doesn't clash with OpenCV convention (left, top, width, height)
+    #      Or, create a versatile utility class Rect with appropriate properties and conversions
+    left = self.screenSize[0] / 2 - self.imageSize[0] / 2
+    top = self.screenSize[1] / 2 - self.imageSize[1] / 2
+    self.imageRect = np.int_([left, left + self.imageSize[0], top, top + self.imageSize[1]])
+    self.logger.debug("Image rect: {}".format(self.imageRect))
+  
+  def shiftFocus(self, deltaX=0, deltaY=0):
+    self.setFocus(self.focusPoint[0] + deltaX, self.focusPoint[1] + deltaY)
+  
+  def setFocus(self, x, y):
+    self.focusPoint = (np.clip(x, self.imageRect[0], self.imageRect[1] - 1), np.clip(y, self.imageRect[2], self.imageRect[3] - 1))
+    self.updateFocusRect()
+  
+  def updateFocusRect(self):
+    # Compute focus rect bounds - varying screen area that is copied to target: (left, right, top, bottom)
+    left = self.focusPoint[0] - self.target.imageSize[0] / 2
+    top = self.focusPoint[1] - self.target.imageSize[1] / 2
+    self.focusRect = np.int_([left, left + self.target.imageSize[0], top, top + self.target.imageSize[1]])
+    self.logger.debug("Focus rect: {}".format(self.focusRect))
+
+
 class InputRunner(object):
   """Runs a FrameProcessor instance on a static image (repeatedly) or on frames from a camera/video."""
   
@@ -273,7 +340,7 @@ class InputRunner(object):
     self.inputDevice.close()
 
 
-def run(processor=None, description="A demo computer vision application", parent_argparsers=[], resetContextTime=True):
+def run(processor=Projector, description="A demo computer vision application", parent_argparsers=[], resetContextTime=True):
   # * Create application context and input runner
   context = Context.createInstance(description=description, parent_argparsers=parent_argparsers)
   runner = InputRunner(processor)
