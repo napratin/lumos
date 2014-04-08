@@ -1,5 +1,6 @@
 """Network-based interfaces, including RPC-enabled components."""
 
+import time
 import logging
 import numpy as np
 import cv2
@@ -15,18 +16,28 @@ class ImageServer(OutputDevice):
   
   default_port = 61616
   default_read_call = 'ImageServer.read'
+  wait_interval = 0.1  # s; time to sleep while waiting for first valid image
+  max_wait_duration = 2.0  # s; total time to wait for valid image
   
   def __init__(self, port=default_port, start_server=True, *args, **kwargs):
     OutputDevice.__init__(self)
+    self.isFresh = True  # used to prevent clients from getting a None as the first image
     rpc.export(self)  # NOTE prepends class name to all RPC-enabled method names
     if start_server:
       rpc.start_server_thread(port=port, *args, **kwargs)
   
   @rpc.enable_image  # NOTE implicitly specifies RPC call name to be the same as function name
   def read(self):
+    if self.isFresh:
+      waitStarted = time.time()
+      while self.image is None and (time.time() - waitStarted) < self.max_wait_duration:
+        time.sleep(self.wait_interval)
+      self.isFresh = False
     return self.image
   
   def stop(self):
+    self.image = None  # so that anyone requesting in the meantime will get an indication that we're done
+    self.isFresh = True  # can be useful if we want to reset an existing ImageServer
     rpc.stop_server()
   
   def __enter__(self):
@@ -39,8 +50,10 @@ class ImageServer(OutputDevice):
 class ImageClient(rpc.Client):
   """A lightweight client exposing a simple read() method for retrieving images from a remote RPC server."""
   
-  def __init__(self, read_call=ImageServer.default_read_call, port=ImageServer.default_port, *args, **kwargs):
-    rpc.Client.__init__(self, port=port, *args, **kwargs)
+  image_recv_timeout = 10000  # have a relatively large timeout to allow remote servers to start, but prevent getting hung up at the end
+  
+  def __init__(self, read_call=ImageServer.default_read_call, port=ImageServer.default_port, timeout=image_recv_timeout, *args, **kwargs):
+    rpc.Client.__init__(self, port=port, timeout=timeout, *args, **kwargs)
     self.logger = logging.getLogger(self.__class__.__name__)
     self.read_call = read_call
   

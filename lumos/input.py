@@ -91,10 +91,12 @@ class InputDevice(object):
         self.resetVideo()
     
     # * Read image properties (common to static image/camera/video)
-    self.imageSize = (self.image.shape[1], self.image.shape[0])
-    self.logger.info("Image size: {}x{}".format(self.imageSize[0], self.imageSize[1]))
-    
-    self.isOkay = True  # all good, so far
+    if self.image is not None:
+      self.imageSize = (self.image.shape[1], self.image.shape[0])
+      self.logger.info("Image size: {}x{}".format(self.imageSize[0], self.imageSize[1]))
+      self.isOkay = True  # all good, so far
+    else:
+      self.logger.error("Empty image!")
   
   def readFrame(self):
     """Read a frame from camera/video. Not meant to be called directly."""
@@ -151,11 +153,12 @@ class Projector(FrameProcessor):
   """An input manager that can select a window within a given image stream, with a movable point of focus."""
   
   key_focus_jump = 10  # no. of pixels to shift focus under (manual) keyboard control
-  screen_background = np.uint8([128, 128, 128])  # what should the area outside the source image stream be treated as
+  default_screen_background = np.uint8([128, 128, 128])  # what should the area outside the source image stream be treated as
   
-  def __init__(self, target=None):
+  def __init__(self, target=None, screen_background=default_screen_background):
     FrameProcessor.__init__(self)
     self.target = target if target is not None else FrameProcessor()
+    self.screen_background = screen_background
   
   def initialize(self, imageIn, timeNow):
     FrameProcessor.initialize(self, imageIn, timeNow)
@@ -165,7 +168,8 @@ class Projector(FrameProcessor):
     self.screen = np.zeros((self.screenSize[1], self.screenSize[0], 3), dtype=np.uint8)
     self.screen[:, :] = self.screen_background
     self.updateImageRect()
-    self.setFocus(self.screenSize[0] / 2, self.screenSize[1] / 2)  # calls updateFocusRect()
+    self.lastFocusPoint = (-1, -1)
+    self.centerFocus()  # calls updateFocusRect(), sets lastFocusPoint
   
   def process(self, imageIn, timeNow):
     self.image = imageIn
@@ -187,7 +191,7 @@ class Projector(FrameProcessor):
     elif keyChar == 'd':
       self.shiftFocus(deltaX=self.key_focus_jump)
     elif keyChar == 'c':
-      self.setFocus(self.screenSize[0] / 2, self.screenSize[1] / 2)
+      self.centerFocus()
     return True
   
   def updateImageRect(self):
@@ -197,14 +201,23 @@ class Projector(FrameProcessor):
     left = self.screenSize[0] / 2 - self.imageSize[0] / 2
     top = self.screenSize[1] / 2 - self.imageSize[1] / 2
     self.imageRect = np.int_([left, left + self.imageSize[0], top, top + self.imageSize[1]])
-    self.logger.debug("Image rect: {}".format(self.imageRect))
+    #self.logger.debug("Image rect: {}".format(self.imageRect))  # [verbose]
   
   def shiftFocus(self, deltaX=0, deltaY=0):
-    self.setFocus(self.focusPoint[0] + deltaX, self.focusPoint[1] + deltaY)
+    return self.setFocus(self.focusPoint[0] + deltaX, self.focusPoint[1] + deltaY)
+  
+  def centerFocus(self):
+    return self.setFocus(self.screenSize[0] / 2, self.screenSize[1] / 2)
   
   def setFocus(self, x, y):
     self.focusPoint = (np.clip(x, self.imageRect[0], self.imageRect[1] - 1), np.clip(y, self.imageRect[2], self.imageRect[3] - 1))
     self.updateFocusRect()
+    if self.focusPoint[0] == self.lastFocusPoint[0] and self.focusPoint[1] == self.lastFocusPoint[1]:
+      return False  # no actual shift occurred
+    else:
+      #self.logger.debug("Focus shifted from {} to {}".format(self.lastFocusPoint, self.focusPoint))  # [verbose]
+      self.lastFocusPoint = self.focusPoint
+      return True
   
   def updateFocusRect(self):
     # Compute focus rect bounds - varying screen area that is copied to target: (left, right, top, bottom)
@@ -264,7 +277,7 @@ class InputRunner(object):
       
       # ** Read frame from input device
       if not self.isFrozen:
-        if not self.inputDevice.read():
+        if not self.inputDevice.isOkay or not self.inputDevice.read():
           return False  # camera disconnected or reached end of video
         
         if self.showInput:
@@ -335,8 +348,8 @@ class InputRunner(object):
   
   def cleanUp(self):
     self.logger.debug("Cleaning up...")
-    if self.context.options.gui:
-      cv2.destroyAllWindows()
+    #if self.context.options.gui:
+    #  cv2.destroyAllWindows()  # fails if no windows have been created
     self.inputDevice.close()
 
 

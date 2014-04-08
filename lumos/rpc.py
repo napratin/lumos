@@ -261,9 +261,12 @@ class Server(object):
   
   # TODO A broken down mechanism (like InputRunner) that allows fine-grain control over updates/request-reply iterations (?)
   
+  socket_linger = 2500  # max time to wait around to send pending messages before closing, -1 to wait indefinitely
   recv_timeout = 4000
-  _loop_flag = True  # run() keeps running while this is True
-
+  
+  _running_instances = set()  # to ensure we don't try to run multiple servers bound to the same address
+  _loop_flag = True  # run() keeps running while this is True, stop() sets it to false
+  
   def __init__(self, protocol=default_protocol, host=default_bind_host, port=default_port, timeout=recv_timeout):
     self.logger = logging.getLogger(self.__class__.__name__)
     self.addr = "{}://{}:{}".format(protocol, host, port)
@@ -271,12 +274,20 @@ class Server(object):
     refresh()  # gather/update all callables, for further updates call refresh() externally
   
   def run(self):
+    # Check for existing server instance, abort if one is already running
+    for instance in self._running_instances:
+      if self.addr == instance.addr:
+        self.logger.warn("Server instance already running at: %s (aborting to avoid clash)", instance.addr)
+        return
+    
     # ZMQ setup (NOTE this is almost identical to client setup - can these be combined?)
     self.c = zmq.Context()
     self.s = self.c.socket(zmq.REP)
+    self.s.setsockopt(zmq.LINGER, self.socket_linger)  # does this affect how long server listens for?
     if self.timeout is not None:
       self.s.setsockopt(zmq.RCVTIMEO, self.timeout)
     self.s.bind(self.addr)
+    self._running_instances.add(self)
     time.sleep(0.1)  # yield to ZMQ backend
     self.logger.info("Bound to: {}".format(self.addr))
     
@@ -300,6 +311,7 @@ class Server(object):
     # Clean up
     self.s.close()
     #self.c.term()  # don't close context, as it may be shared (will be closed upon release anyway)
+    self._running_instances.remove(self)
     self.logger.info("Server stopped.")
   
   def handle(self, request):
@@ -392,6 +404,7 @@ class Server(object):
 class Client(object):
   """A lightweight client that can be used to make RPC calls on a server."""
   
+  socket_linger = 2500  # max time to wait around to send pending messages before closing, -1 to wait indefinitely
   recv_timeout = None  #2000  # it's better to force clients to block and Ctrl+C out of them
   
   def __init__(self, protocol=default_protocol, host=default_connect_host, port=default_port, timeout=recv_timeout):
@@ -399,6 +412,7 @@ class Client(object):
     self.addr = "{}://{}:{}".format(protocol, host, port)
     self.c = zmq.Context()
     self.s = self.c.socket(zmq.REQ)
+    self.s.setsockopt(zmq.LINGER, self.socket_linger)
     if timeout is not None:
       self.s.setsockopt(zmq.RCVTIMEO, timeout)
     self.s.connect(self.addr)

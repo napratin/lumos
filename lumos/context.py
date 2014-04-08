@@ -57,6 +57,7 @@ class Context:
       return cls.instance
     except AttributeError:
       raise Exception("Context.getInstance(): Called before context was created.")
+      # TODO: Seriously, find a better way to resolve this - return partial context? parse arguments later? always create an instance on module load?
   
   def __init__(self, argv=None, description=default_description, parent_argparsers=[]):
     """Create a singleton, global application context, parse command-line args (with possible parent parsers passed in), and try to initialize input source parameters."""
@@ -71,6 +72,7 @@ class Context:
     self.argParser.add_argument('--res', dest='res_path', default=self.default_res_path, help='path to resource directory')
     self.argParser.add_argument('--log', dest='log_file', default='auto', help="where to log messages ('none' to turn off logging)")
     self.argParser.add_argument('--debug', action="store_true", help="show debug output?")
+    self.argParser.add_argument('--rpc', dest='rpc_port', type=int, nargs='?', default=-1, help="run RPC server at specified (or default) port")
     #self.argParser.add_argument('--gui', action="store_true", help="display GUI interface/windows?")  # use mutually exclusive [--gui | --no_gui] group instead
     guiGroup = self.argParser.add_mutually_exclusive_group()
     guiGroup.add_argument('--gui', dest='gui', action='store_true', default=True, help="display GUI interface/windows?")
@@ -139,6 +141,15 @@ class Context:
               self.logger.warn("Input source type could not be determined: {}".format(self.options.input_source))
           else:
             self.logger.warn("Input source doesn't exist: {}".format(self.options.input_source))
+    
+    # * Start RPC server if requested
+    self.isRPCEnabled = False
+    if self.options.rpc_port != -1:
+      import rpc  # import locally to avoid depending on ZMQ and other RPC-related stuff when not needed
+      if self.options.rpc_port is None:
+        self.options.rpc_port = rpc.default_port
+      rpc.start_server_thread(port=self.options.rpc_port)
+      self.isRPCEnabled = True
     
     # * Timing
     self.resetTime()
