@@ -1,5 +1,7 @@
 """Network-based interfaces, including RPC-enabled components."""
 
+from __future__ import print_function
+
 import time
 import logging
 import numpy as np
@@ -72,6 +74,51 @@ class ImageClient(rpc.Client):
     self.close()
 
 
+class EventLogger(object):
+  """A simple timed event logger that dumps incoming log messages to a flat file with a prefixed stream ID and common logger time."""
+  
+  default_port = 62626
+  default_sep = "\t"
+  timestamp_format = '%Y-%m-%d_%H-%M-%S'  # used to generate filenames
+  
+  def __init__(self, filename=None, sep=default_sep, port=default_port, start_server=True, *args, **kwargs):
+    self.filename = filename
+    self.sep = sep
+    self.port = port
+    self.serverStarted = False
+    
+    self.initTime = time.time()
+    self.logger = logging.getLogger(self.__class__.__name__)
+    if self.filename is None:
+      self.filename = "logs/events_{}.log".format(time.strftime(self.timestamp_format, time.localtime(self.initTime)))
+    try:
+      self.out = open(self.filename, 'w')
+      rpc.export(self)  # NOTE prepends class name to all RPC-enabled method names
+      if start_server:
+        rpc.start_server_thread(port=self.port, *args, **kwargs)
+        self.serverStarted = True
+    except Exception as e:
+      self.logger.error("Error opening log file or starting RPC server: %s", str(e))
+    self.logger.info("Logger successfully initialized; filename: %s", self.filename)
+  
+  @rpc.enable
+  def log(self, stream, msg):
+    print(stream, time.time() - self.initTime, msg, sep=self.sep, file=self.out)
+  
+  def stop(self, stop_server=True):
+    if self.out is not None:
+      self.out.close()
+    if stop_server and self.serverStarted:
+      rpc.stop_server()
+    self.logger.info("Logger stopped")
+  
+  def __enter__(self):
+    return self
+  
+  def __exit__(self, *_):
+    self.stop()
+
+
 def image_server(inputDevice=None, port=ImageServer.default_port, *args, **kwargs):
   """A demo RPC server that exposes a method to retrieve images from a given InputDevice."""
   if inputDevice is None:
@@ -112,13 +159,26 @@ def image_client(read_call=ImageServer.default_read_call, port=ImageServer.defau
   logger.info("Done.")
 
 
+def event_logger():
+  Context.createInstance()  # ensure we have a context
+  with EventLogger() as eventLogger:  # starts RPC server by default
+    while True:
+      try:
+        time.sleep(60.0)
+      except KeyboardInterrupt:
+        break
+
+
 if __name__ == "__main__":
   choices = [('--image_server', "Run an image server (from output module)"),
-             ('--image_client', "Run an image client")]
+             ('--image_client', "Run an image client"),
+             ('--event_logger', "Run an event logger (server)")]
   context = Context.createInstance(parent_argparsers=[Context.createChoiceParser(choices)])
   if context.options.image_server:
     image_server()
   elif context.options.image_client:
     image_client()
+  elif context.options.event_logger:
+    event_logger()
   else:
-    print "Usage: python -m", __loader__.fullname, "[", " | ".join(choice[0] for choice in choices), "]"
+    print("Usage: python -m", __loader__.fullname, "[", " | ".join(choice[0] for choice in choices), "]")
