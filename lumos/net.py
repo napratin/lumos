@@ -81,7 +81,7 @@ class EventLogger(object):
   default_sep = "\t"
   timestamp_format = '%Y-%m-%d_%H-%M-%S'  # used to generate filenames
   
-  def __init__(self, filename=None, sep=default_sep, port=default_port, start_server=True, *args, **kwargs):
+  def __init__(self, filename=None, sep=default_sep, port=default_port, rpc_export=True, start_server=True, *args, **kwargs):
     self.filename = filename
     self.sep = sep
     self.port = port
@@ -93,17 +93,18 @@ class EventLogger(object):
       self.filename = "logs/events_{}.log".format(time.strftime(self.timestamp_format, time.localtime(self.initTime)))
     try:
       self.out = open(self.filename, 'w')
-      rpc.export(self)  # NOTE prepends class name to all RPC-enabled method names
-      if start_server:
-        rpc.start_server_thread(port=self.port, *args, **kwargs)
-        self.serverStarted = True
+      if rpc_export:
+        rpc.export(self)  # NOTE prepends class name to all RPC-enabled method names
+        if start_server:
+          rpc.start_server_thread(port=self.port, *args, **kwargs)
+          self.serverStarted = True
     except Exception as e:
       self.logger.error("Error opening log file or starting RPC server: %s", str(e))
     self.logger.info("Logger successfully initialized; filename: %s", self.filename)
   
   @rpc.enable
-  def log(self, stream, msg):
-    print(stream, time.time() - self.initTime, msg, sep=self.sep, file=self.out)
+  def log(self, tag, msg):
+    print(tag, time.time(), msg, sep=self.sep, file=self.out)  # log absolute time; for relative time, use: time.time() - self.initTime
   
   def stop(self, stop_server=True):
     if self.out is not None:
