@@ -6,6 +6,7 @@ import os
 from inspect import ismethod, isclass
 from urlparse import urlparse
 import numpy as np
+from numpy import pi, abs, exp, sqrt, hypot  # need vector versions for some, hence numpy
 import cv2
 import zmq
 
@@ -96,6 +97,15 @@ def log_str(obj, func, msg):
 def log(obj, func, msg):
   """Log a message composed using log_str() to stdout."""
   print log_str(obj, func, msg)
+
+
+# Math
+def getNormPDF(x, mu=0, sigma=1):
+  """Get normal probability density at given x (scalar or a numpy array) with distribution (mu, sigma)."""
+  sigma = float(abs(sigma))
+  u = (x - mu) / sigma
+  y = exp(-u * u / 2) / (sqrt(2 * pi) * sigma)
+  return y
 
 
 # File/resource-related
@@ -211,3 +221,12 @@ def showImage(image, duration=3000, windowTitle="Image", closeWindow=True):
   if closeWindow:
     cv2.destroyWindow(windowTitle)
   return key
+
+def getNormMap(size, mu=None, sigma=None, normalized=True):
+  """Get normal probability density map over (size, size) area with distribution (mu, sigma), optionally normalized."""
+  if mu is None:
+    mu = (size - 1.0) / 2.0
+  if sigma is None:
+    sigma = max(abs((size - 1.0) / 2.0), 1.0)
+  b = getNormPDF(np.float32([[hypot(x - mu, y - mu) for x in xrange(size)] for y in xrange(size)]), mu=0.0, sigma=sigma)  # mu has already been incorporated
+  return cv2.normalize(b, alpha=0.0, beta=1.0, norm_type=cv2.NORM_MINMAX) if normalized else b
