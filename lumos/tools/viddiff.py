@@ -6,7 +6,6 @@ from datetime import datetime
 
 import numpy as np
 import cv2
-import cv2.cv as cv
 
 default_frame_delay = 20
 
@@ -48,16 +47,16 @@ def viddiff():
     print "Unable to open (b): {}".format(video_filename_b)
     return
   
-  frame_count_a = int(video_a.get(cv2.cv.CV_CAP_PROP_FRAME_COUNT))
-  frame_count_b = int(video_b.get(cv2.cv.CV_CAP_PROP_FRAME_COUNT))
+  frame_count_a = int(video_a.get(cv2.CAP_PROP_FRAME_COUNT))
+  frame_count_b = int(video_b.get(cv2.CAP_PROP_FRAME_COUNT))
   print "Inputs:-\n\ta: {} (frame # {} / {})\n\tb: {} (frame # {} / {})".format(video_filename_a, start_frame_a, frame_count_a, video_filename_b, start_frame_b, frame_count_b)
   
   def setFramePos(video, frame_pos, relative=False, start_frame=0):
-    frame_pos = video.get(cv2.cv.CV_CAP_PROP_POS_FRAMES) + frame_pos if relative else frame_pos
+    frame_pos = video.get(cv2.CAP_PROP_POS_FRAMES) + frame_pos if relative else frame_pos
     if frame_pos < start_frame:
       frame_pos = start_frame
-    video.set(cv2.cv.CV_CAP_PROP_POS_FRAMES, frame_pos)
-    return int(video.get(cv2.cv.CV_CAP_PROP_POS_FRAMES))
+    video.set(cv2.CAP_PROP_POS_FRAMES, frame_pos)
+    return int(video.get(cv2.CAP_PROP_POS_FRAMES))
   
   if start_frame_a > 0:
     frame_pos_a = setFramePos(video_a, start_frame_a)
@@ -73,8 +72,8 @@ def viddiff():
   isEqualSize = True  # to be determined later; assume equal
   while isOkay:
     # Check frame positions and loop over if we've reached the end
-    frame_pos_a = int(video_a.get(cv2.cv.CV_CAP_PROP_POS_FRAMES))
-    frame_pos_b = int(video_b.get(cv2.cv.CV_CAP_PROP_POS_FRAMES))
+    frame_pos_a = int(video_a.get(cv2.CAP_PROP_POS_FRAMES))
+    frame_pos_b = int(video_b.get(cv2.CAP_PROP_POS_FRAMES))
     if frame_pos_a >= frame_count_a or frame_pos_b >= frame_count_b:
       print "Looping (on frame count)..."
       frame_pos_a = setFramePos(video_a, start_frame_a)

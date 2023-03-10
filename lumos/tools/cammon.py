@@ -7,7 +7,6 @@ from datetime import datetime
 
 import numpy as np
 import cv2
-import cv2.cv as cv
 
 # NOTE Can't use relative imports if not executing as python module (-m)
 from camview import ensure_dir
@@ -19,21 +18,21 @@ class OutMode:
 
 class VideoCodec:
   AUTO = -1
-  MPEG = cv.CV_FOURCC('M', 'P', 'E', 'G')
-  AVC1 = cv.CV_FOURCC('A','V','C','1')
-  YUV1 = cv.CV_FOURCC('Y','U','V','1')
-  PIM1 = cv.CV_FOURCC('P','I','M','1')
-  MJPG = cv.CV_FOURCC('M','J','P','G')
-  MP42 = cv.CV_FOURCC('M','P','4','2')
-  DIV3 = cv.CV_FOURCC('D','I','V','3')
-  DIVX = cv.CV_FOURCC('D','I','V','X')
-  U263 = cv.CV_FOURCC('U','2','6','3')
-  I263 = cv.CV_FOURCC('I','2','6','3')
-  FLV1 = cv.CV_FOURCC('F','L','V','1')
-  H264 = cv.CV_FOURCC('H','2','6','4')
-  AYUV = cv.CV_FOURCC('A','Y','U','V')
-  IUYV = cv.CV_FOURCC('I','U','Y','V')
-  WMV1 = cv.CV_FOURCC('W','M','V','1')
+  MPEG = cv2.VideoWriter_fourcc('M', 'P', 'E', 'G')
+  AVC1 = cv2.VideoWriter_fourcc('A','V','C','1')
+  YUV1 = cv2.VideoWriter_fourcc('Y','U','V','1')
+  PIM1 = cv2.VideoWriter_fourcc('P','I','M','1')
+  MJPG = cv2.VideoWriter_fourcc('M','J','P','G')
+  MP42 = cv2.VideoWriter_fourcc('M','P','4','2')
+  DIV3 = cv2.VideoWriter_fourcc('D','I','V','3')
+  DIVX = cv2.VideoWriter_fourcc('D','I','V','X')
+  U263 = cv2.VideoWriter_fourcc('U','2','6','3')
+  I263 = cv2.VideoWriter_fourcc('I','2','6','3')
+  FLV1 = cv2.VideoWriter_fourcc('F','L','V','1')
+  H264 = cv2.VideoWriter_fourcc('H','2','6','4')
+  AYUV = cv2.VideoWriter_fourcc('A','Y','U','V')
+  IUYV = cv2.VideoWriter_fourcc('I','U','Y','V')
+  WMV1 = cv2.VideoWriter_fourcc('W','M','V','1')
 
 
 class ImageSeqWriter:
@@ -117,11 +116,11 @@ def cammon():
     return
   
   if not isVideo:
-    camera.set(cv.CV_CAP_PROP_FRAME_WIDTH, cameraWidth)
-    camera.set(cv.CV_CAP_PROP_FRAME_HEIGHT, cameraHeight)
+    camera.set(cv2.CAP_PROP_FRAME_WIDTH, cameraWidth)
+    camera.set(cv2.CAP_PROP_FRAME_HEIGHT, cameraHeight)
     _, image = camera.read()  # test read image
-    cameraWidth = int(camera.get(cv.CV_CAP_PROP_FRAME_WIDTH))
-    cameraHeight = int(camera.get(cv.CV_CAP_PROP_FRAME_HEIGHT))
+    cameraWidth = int(camera.get(cv2.CAP_PROP_FRAME_WIDTH))
+    cameraHeight = int(camera.get(cv2.CAP_PROP_FRAME_HEIGHT))
     print "Camera frame size: {}x{}".format(cameraWidth, cameraHeight)
   
   if debug:

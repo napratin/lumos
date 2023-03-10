@@ -9,7 +9,6 @@ import types
 # NumPy, OpenCV imports
 import numpy as np
 import cv2
-import cv2.cv as cv
 
 # Custom imports
 from .util import KeyCode
@@ -55,9 +54,9 @@ class InputDevice(object):
       # NOTE: If camera frame size is not one supported by the hardware, grabbed images are scaled to desired size, discarding aspect-ratio
       try:
         if self.context.options.camera_width != 'auto':
-          self.camera.set(cv.CV_CAP_PROP_FRAME_WIDTH, int(self.context.options.camera_width))
+          self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, int(self.context.options.camera_width))
         if self.context.options.camera_height != 'auto':
-          self.camera.set(cv.CV_CAP_PROP_FRAME_HEIGHT, int(self.context.options.camera_height))
+          self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, int(self.context.options.camera_height))
       except ValueError:
         self.logger.warning("Ignoring invalid camera frame size: {}x{}".format(self.context.options.camera_width, self.context.options.camera_height))
     
@@ -68,15 +67,15 @@ class InputDevice(object):
     else:
       if self.context.isVideo:
         # ** Read video properties, set video-specific variables
-        self.videoNumFrames = int(self.camera.get(cv.CV_CAP_PROP_FRAME_COUNT))
+        self.videoNumFrames = int(self.camera.get(cv2.CAP_PROP_FRAME_COUNT))
         if self.context.options.video_fps == 'auto':
-          self.videoFPS = self.camera.get(cv.CV_CAP_PROP_FPS)
+          self.videoFPS = self.camera.get(cv2.CAP_PROP_FPS)
         else:
           try:
             self.videoFPS = float(self.context.options.video_fps)
           except ValueError:
             self.logger.warning("Invalid video FPS \"{}\"; switching to auto".format(self.self.context.options.video_fps))
-            self.videoFPS = self.camera.get(cv.CV_CAP_PROP_FPS)
+            self.videoFPS = self.camera.get(cv2.CAP_PROP_FPS)
         self.videoDuration = self.videoNumFrames / self.videoFPS
         self.logger.info("Video [init]: {:.3f} secs., {} frames at {:.2f} fps{}".format(self.videoDuration, self.videoNumFrames, self.videoFPS, (" (sync target)" if self.context.options.sync_video else "")))
         if self.context.options.sync_video:
@@ -86,7 +85,7 @@ class InputDevice(object):
       # ** Grab test image and read common camera/video properties
       self.readFrame()  # post-grab (to apply any camera prop changes made)
       if not self.context.isRemote:
-        self.logger.info("Frame size: {}x{}".format(int(self.camera.get(cv.CV_CAP_PROP_FRAME_WIDTH)), int(self.camera.get(cv.CV_CAP_PROP_FRAME_HEIGHT))))
+        self.logger.info("Frame size: {}x{}".format(int(self.camera.get(cv2.CAP_PROP_FRAME_WIDTH)), int(self.camera.get(cv2.CAP_PROP_FRAME_HEIGHT))))
       if self.context.isVideo:
         self.resetVideo()
     
@@ -138,7 +137,7 @@ class InputDevice(object):
     return self.isOkay
   
   def resetVideo(self):
-    self.camera.set(cv.CV_CAP_PROP_POS_FRAMES, 0)
+    self.camera.set(cv2.CAP_PROP_POS_FRAMES, 0)
     self.frameCount = 0
     self.frameTimeStart = self.context.timeNow  # synced with context
     self.timeDelta = 0.0

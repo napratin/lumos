@@ -8,7 +8,6 @@ from multiprocessing import Process, Value, Array
 
 import numpy as np
 import cv2
-import cv2.cv as cv
 
 import zmq
 
@@ -53,8 +52,8 @@ class CameraStreamPublisher(Process):
     # * Open camera and set desired capture properties
     self.camera = cv2.VideoCapture(0)
     if self.camera.isOpened():
-      result_width = self.camera.set(cv.CV_CAP_PROP_FRAME_WIDTH, camera_frame_width)
-      result_height = self.camera.set(cv.CV_CAP_PROP_FRAME_HEIGHT, camera_frame_height)
+      result_width = self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, camera_frame_width)
+      result_height = self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, camera_frame_height)
       print "CameraStreamPublisher.run(): Camera frame size set to {width}x{height} (result: {result_width}, {result_height})".format(width=camera_frame_width, height=camera_frame_height, result_width=result_width, result_height=result_height)
     else:
       print "CameraStreamPublisher.run(): Unable to open camera; aborting..."

@@ -12,7 +12,6 @@ import json
 import argparse
 import numpy as np
 import cv2
-import cv2.cv as cv
 
 from ..util import Enum
 from ..base import FrameProcessor
@@ -128,7 +127,7 @@ class ColorFilterProcessor(FrameProcessor):
   def process(self, imageIn, timeNow):
     self.image = imageIn
 
-    self.imageHSV = cv2.cvtColor(self.image, cv.CV_BGR2HSV)
+    self.imageHSV = cv2.cvtColor(self.image, cv2.COLOR_BGR2HSV)
     #if self.context.options.gui:
     #  cv2.imshow("HSV", self.imageHSV)
     #  cv2.imshow("H", self.imageHSV[:,:,0])
@@ -142,8 +141,8 @@ class ColorFilterProcessor(FrameProcessor):
       
         lowerPatch = np.array([[self.colorFilter.lower]])  # 1x1 image for lower-bound display
         upperPatch = np.array([[self.colorFilter.upper]])  # 1x1 image for upper-bound display
-        imageMasked[10:50, 10:50, :] = cv2.cvtColor(lowerPatch, cv.CV_HSV2BGR)
-        imageMasked[10:50, 51:90, :] = cv2.cvtColor(upperPatch, cv.CV_HSV2BGR)
+        imageMasked[10:50, 10:50, :] = cv2.cvtColor(lowerPatch, cv2.COLOR_HSV2BGR)
+        imageMasked[10:50, 51:90, :] = cv2.cvtColor(upperPatch, cv2.COLOR_HSV2BGR)
         
         cv2.imshow(self.winName, imageMasked)
         self.imageOut = self.maskHSV

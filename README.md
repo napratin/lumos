@@ -10,7 +10,7 @@ Pre-requisites
 
 * [Python 2.7.x](http://www.python.org/)
 * [NumPy](http://www.numpy.org/) (lumos doesn't need SciPy, just NumPy, but it doesn't hurt)
-* [OpenCV 2.4.x](http://opencv.org/)
+* [OpenCV 4.2.0](http://opencv.org/)
 * [PyZMQ](http://zeromq.org/bindings:python) (optional, for streaming/pub-sub servers)
 
 Windows users, please note: NumPy binaries are not available for 64-bit Python, so get 32-bit, or build NumPy from source. Also setup [Python bindings for OpenCV](http://docs.opencv.org/trunk/doc/py_tutorials/py_setup/py_setup_in_windows/py_setup_in_windows.html).
@@ -44,7 +44,6 @@ Installation and usage
     """A sample lumos application."""
 
     import cv2  # OpenCV functions
-    import cv2.cv as cv  # OpenCV constants
 
     from lumos.base import FrameProcessor  # base processor class
     from lumos.input import run  # driver function
@@ -54,7 +53,7 @@ Installation and usage
       
       def process(self, imageIn, timeNow):
         # Convert input Red-Green-Blue image to Hue-Saturation-Value
-        hsv = cv2.cvtColor(imageIn, cv.CV_BGR2HSV)
+        hsv = cv2.cvtColor(imageIn, cv2.COLOR_BGR2HSV)
         h, s, v = cv2.split(hsv)  # split into 3 channels
         h = h.reshape(h.shape + (1,))
         

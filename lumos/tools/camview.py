@@ -6,10 +6,9 @@ from datetime import datetime
 
 import numpy as np
 import cv2
-import cv2.cv as cv
 
-defaultCameraWidth = 320
-defaultCameraHeight = 240
+defaultCameraWidth = 1280
+defaultCameraHeight = 720
 defaultDelay = 15
 
 def ensure_dir(path):
@@ -70,11 +69,11 @@ def camview():
     return
   
   if not isVideo:
-    camera.set(cv.CV_CAP_PROP_FRAME_WIDTH, cameraWidth)
-    camera.set(cv.CV_CAP_PROP_FRAME_HEIGHT, cameraHeight)
+    camera.set(cv2.CAP_PROP_FRAME_WIDTH, cameraWidth)
+    camera.set(cv2.CAP_PROP_FRAME_HEIGHT, cameraHeight)
     _, image = camera.read()  # test read image
-    cameraWidth = int(camera.get(cv.CV_CAP_PROP_FRAME_WIDTH))
-    cameraHeight = int(camera.get(cv.CV_CAP_PROP_FRAME_HEIGHT))
+    cameraWidth = int(camera.get(cv2.CAP_PROP_FRAME_WIDTH))
+    cameraHeight = int(camera.get(cv2.CAP_PROP_FRAME_HEIGHT))
     print "Camera frame size: {}x{}".format(cameraWidth, cameraHeight)
   
   print "Press ESC or Q to quit, SPACE to pause, S to take snapshot..."

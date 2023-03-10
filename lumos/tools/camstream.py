@@ -7,10 +7,9 @@ from multiprocessing import Process, Value, Array
 import numpy as np
 from numpy import ctypeslib
 import cv2
-import cv2.cv as cv
 
-camera_frame_width = 640
-camera_frame_height = 480
+camera_frame_width = 1280
+camera_frame_height = 720
 camera_frame_depth = 3
 frame_delay = 20
 
@@ -42,8 +41,8 @@ class CameraStreamer(Process):
     # * Open camera and set desired capture properties
     self.camera = cv2.VideoCapture(0)
     if self.camera.isOpened():
-      result_width = self.camera.set(cv.CV_CAP_PROP_FRAME_WIDTH, camera_frame_width)
-      result_height = self.camera.set(cv.CV_CAP_PROP_FRAME_HEIGHT, camera_frame_height)
+      result_width = self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, camera_frame_width)
+      result_height = self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, camera_frame_height)
       print "CameraStreamer.run(): Camera frame size set to {width}x{height} (result: {result_width}, {result_height})".format(width=camera_frame_width, height=camera_frame_height, result_width=result_width, result_height=result_height)
     else:
       print "CameraStreamer.run(): Unable to open camera; aborting..."
@@ -55,10 +54,11 @@ class CameraStreamer(Process):
       try:
         #print "CameraStreamer.run(): Frame # {}, stay alive? {}".format(self.frameCountObj.value, self.stayAliveObj.value)  # [debug]
         isOkay, frame = self.camera.read()
-        if not isOkay:
+        if not isOkay or frame is None:
           self.stayAliveObj.value = False
-        self.frameCountObj.value = self.frameCountObj.value + 1
-        self.image[:] = frame
+        else:
+          self.frameCountObj.value = self.frameCountObj.value + 1
+          self.image[:] = frame
       except KeyboardInterrupt:
         self.stayAliveObj.value = False
     

@@ -26,7 +26,7 @@ if do_install_scripts:
 # Call setup()
 setup(
   name=pkg_name,
-  version='0.1',
+  version='1.0',
   description='A collection of tools and utility constructs to enable smart computer vision applications (requires OpenCV).',
   long_description=readme,
   url='https://github.com/napratin/lumos',
